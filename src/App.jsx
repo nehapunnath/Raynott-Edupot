@@ -6,6 +6,7 @@ import Login from './Pages/Login'
 import Dashboard from './Pages/Dashboard'
 import Header from './Components/Header'
 import Footer from './Components/Footer'
+import About from './Pages/About'
 
 function App() {
   const [count, setCount] = useState(0)
@@ -16,7 +17,7 @@ function App() {
     <Routes>
       <Route path='/login' element={<Login/>}/>
       <Route path='/' element={<Home/>}/>
-      <Route path='/dashboard' element={<Dashboard/>}/>
+      <Route path='/about' element={<About/>}/>
 
     </Routes>
       <Footer/>
