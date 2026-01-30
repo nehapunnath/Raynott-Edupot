@@ -1,0 +1,216 @@
+/* src/index.css */
+@import "tailwindcss";
+
+/* Custom Brown/Amber Theme */
+@layer base {
+  :root {
+    --primary: 180 83% 35%; /* teal-600 */
+    --primary-light: 167 70% 50%; /* teal-400 */
+    --primary-dark: 176 66% 26%; /* teal-700 */
+    --secondary: 43 96% 56%; /* amber-400 */
+    --accent: 32 98% 49%; /* amber-500 */
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    margin: 0;
+    min-height: 100vh;
+    background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 50%, #fefce8 100%);
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 12px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #fffbeb;
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: linear-gradient(to bottom, #f59e0b, #d97706);
+    border-radius: 6px;
+    border: 3px solid #fffbeb;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(to bottom, #d97706, #b45309);
+  }
+}
+
+/* Custom Animations */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; box-shadow: 0 0 20px rgba(245, 158, 11, 0.5); }
+  50% { opacity: 0.8; box-shadow: 0 0 40px rgba(245, 158, 11, 0.8); }
+}
+
+@keyframes gradient-shift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes shimmer {
+  0% { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+.animate-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.animate-pulse-glow {
+  animation: pulse-glow 3s ease-in-out infinite;
+}
+
+.animate-gradient-shift {
+  background: linear-gradient(-45deg, #f59e0b, #d97706, #b45309, #92400e);
+  background-size: 400% 400%;
+  animation: gradient-shift 15s ease infinite;
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite;
+}
+
+/* Glassmorphism */
+.glass-effect {
+  background: rgba(255, 251, 235, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(245, 158, 11, 0.1);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Text Shadows */
+.text-shadow {
+  text-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.text-shadow-lg {
+  text-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+/* Custom Typography */
+.font-display {
+  font-family: 'Inter', sans-serif;
+  font-weight: 900;
+  letter-spacing: -0.025em;
+}
+
+.font-heading {
+  font-family: 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.font-body {
+  font-family: 'Inter', sans-serif;
+  font-weight: 400;
+  line-height: 1.7;
+}
+
+/* Button Hover Effects */
+.btn-hover {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transform-origin: center;
+}
+
+.btn-hover:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(180, 83, 9, 0.25);
+}
+
+/* Card Hover Effects */
+.card-hover {
+  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.card-hover:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 25px 50px -12px rgba(180, 83, 9, 0.25);
+}
+
+/* Loading Animation */
+.loading-dots {
+  display: inline-flex;
+  align-items: center;
+}
+
+.loading-dots span {
+  width: 8px;
+  height: 8px;
+  margin: 0 4px;
+  background-color: #f59e0b;
+  border-radius: 50%;
+  animation: loading-dots 1.4s infinite ease-in-out both;
+}
+
+.loading-dots span:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dots span:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+@keyframes loading-dots {
+  0%, 80%, 100% {
+    transform: scale(0);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* Smooth transitions */
+* {
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+a {
+  text-decoration: none !important;
+  color: inherit !important;
+  position: relative;
+}
+
+a:hover::after {
+  content: '';
+  position: absolute;
+  bottom: -2px;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  animation: underline 0.3s ease;
+}
+
+@keyframes underline {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
