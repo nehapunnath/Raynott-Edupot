@@ -5,7 +5,6 @@ import {
   Target, 
   Users, 
   Award, 
-  TrendingUp, 
   CheckCircle,
   Shield,
   Heart,
@@ -14,7 +13,14 @@ import {
   BarChart3,
   Clock,
   Globe,
-  Sparkles
+  Sparkles,
+  Calculator,
+  Receipt,
+  PieChart,
+  Smartphone,
+  Lock,
+  Cloud,
+  MessageSquare
 } from 'lucide-react';
 
 const About = () => {
@@ -39,58 +45,51 @@ const About = () => {
     }
   ];
 
-  const milestones = [
+  const features = [
     {
-      year: "2020",
-      title: "Founded",
-      description: "Started with a vision to transform school financial management"
-    },
-    {
-      year: "2021",
-      title: "First Launch",
-      description: "Launched our first version with 50+ schools"
-    },
-    {
-      year: "2022",
-      title: "Growth",
-      description: "Expanded to 500+ schools nationwide"
-    },
-    {
-      year: "2023",
-      title: "Innovation",
-      description: "Introduced AI-powered analytics and mobile app"
-    },
-    {
-      year: "2024",
-      title: "Expansion",
-      description: "Going international with multi-language support"
-    }
-  ];
-
-  const teamMembers = [
-    {
-      name: "Sarah Johnson",
-      role: "CEO & Founder",
-      description: "Former school administrator with 15+ years of experience",
+      icon: Calculator,
+      title: "Complete Fee Management",
+      description: "Track all student fees, installments, and payments in one place",
       color: "from-amber-500 to-amber-600"
     },
     {
-      name: "Michael Chen",
-      role: "CTO",
-      description: "Tech entrepreneur with expertise in educational technology",
+      icon: Receipt,
+      title: "Automated Invoicing",
+      description: "Generate professional receipts and invoices automatically",
       color: "from-amber-600 to-amber-700"
     },
     {
-      name: "Priya Sharma",
-      role: "Product Lead",
-      description: "Former teacher turned product designer",
+      icon: PieChart,
+      title: "Financial Analytics",
+      description: "Get real-time insights into collections and pending amounts",
       color: "from-amber-700 to-amber-800"
     },
     {
-      name: "David Miller",
-      role: "Customer Success",
-      description: "Dedicated to ensuring every school succeeds",
+      icon: Smartphone,
+      title: "Mobile Access",
+      description: "Access your financial data anytime, anywhere from any device",
       color: "from-amber-800 to-amber-900"
+    }
+  ];
+
+  const benefits = [
+    {
+      icon: Lock,
+      title: "Security & Privacy",
+      description: "Bank-level encryption and compliance with educational regulations",
+      color: "from-emerald-500 to-emerald-600"
+    },
+    {
+      icon: Cloud,
+      title: "Cloud-Based",
+      description: "No installation required, automatic updates and backups",
+      color: "from-blue-500 to-blue-600"
+    },
+    {
+      icon: MessageSquare,
+      title: "Parent Communication",
+      description: "Automated reminders and notifications to parents",
+      color: "from-purple-500 to-purple-600"
     }
   ];
 
@@ -135,7 +134,7 @@ const About = () => {
       </section>
 
       {/* Stats Section */}
-      {/* <section className="py-16 bg-white">
+      <section className="py-16 bg-white">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {stats.map((stat, index) => (
@@ -157,10 +156,10 @@ const About = () => {
             ))}
           </div>
         </div>
-      </section> */}
+      </section>
 
-      {/* Our Story */}
-      {/* <section className="py-20 bg-gradient-to-b from-white to-amber-50/30">
+      {/* What We Offer */}
+      <section className="py-20 bg-gradient-to-b from-white to-amber-50/30">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
           <motion.div
             initial={{ opacity: 0, y: 30 }}
@@ -169,40 +168,60 @@ const About = () => {
           >
             <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-amber-100 to-amber-200 text-amber-800 rounded-full mb-6 border border-amber-300/50">
               <Sparkles className="mr-3" size={22} />
-              <span className="font-semibold">Our Journey</span>
+              <span className="font-semibold">What We Offer</span>
             </div>
             <h2 className="text-4xl font-bold text-gray-800 mb-8">
-              From Vision to <span className="text-amber-700">Reality</span>
+              Comprehensive <span className="text-amber-700">Solutions</span>
             </h2>
+            <p className="text-xl text-gray-600 max-w-3xl mx-auto">
+              Everything your school needs for efficient financial management
+            </p>
           </motion.div>
 
-          <div className="relative">
-            <div className="hidden md:block absolute left-1/2 transform -translate-x-1/2 h-full w-1 bg-gradient-to-b from-amber-200 via-amber-300 to-amber-400"></div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 mb-16">
+            {features.map((feature, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, y: 50 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+                whileHover={{ y: -5 }}
+                className="group relative bg-gradient-to-br from-white to-amber-50 rounded-2xl shadow-lg p-8 border border-amber-100 hover:shadow-2xl transition-all duration-300 text-center"
+              >
+                <div className={`inline-flex items-center justify-center w-16 h-16 bg-gradient-to-r ${feature.color} rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform mx-auto`}>
+                  <feature.icon className="text-white" size={28} />
+                </div>
+                <h3 className="text-xl font-bold text-gray-800 mb-4 group-hover:text-amber-700 transition-colors">
+                  {feature.title}
+                </h3>
+                <p className="text-gray-600 leading-relaxed">
+                  {feature.description}
+                </p>
+              </motion.div>
+            ))}
+          </div>
 
-            <div className="space-y-12">
-              {milestones.map((milestone, index) => (
-                <motion.div
-                  key={index}
-                  initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
-                  whileInView={{ opacity: 1, x: 0 }}
-                  transition={{ delay: index * 0.1 }}
-                  className={`relative flex items-center ${index % 2 === 0 ? 'md:flex-row' : 'md:flex-row-reverse'}`}
-                >
-                  <div className="absolute left-1/2 transform -translate-x-1/2 md:relative md:left-0 md:transform-none z-10">
-                    <div className="w-20 h-20 bg-gradient-to-r from-amber-500 to-amber-600 rounded-full flex items-center justify-center shadow-xl">
-                      <span className="text-white font-bold text-xl">{milestone.year}</span>
-                    </div>
-                  </div>
-
-                  <div className={`md:w-1/2 ${index % 2 === 0 ? 'md:pr-16 md:text-right' : 'md:pl-16'}`}>
-                    <div className="mt-10 md:mt-0">
-                      <h3 className="text-2xl font-bold text-gray-800 mb-2">{milestone.title}</h3>
-                      <p className="text-gray-600">{milestone.description}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              ))}
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, scale: 0.9 }}
+                whileInView={{ opacity: 1, scale: 1 }}
+                transition={{ delay: index * 0.1 + 0.4 }}
+                whileHover={{ scale: 1.05 }}
+                className="group relative bg-white rounded-2xl shadow-lg p-8 border border-amber-100 hover:shadow-2xl transition-all duration-300"
+              >
+                <div className={`inline-flex items-center justify-center w-14 h-14 bg-gradient-to-r ${benefit.color} rounded-2xl mb-6 shadow-lg group-hover:scale-110 transition-transform`}>
+                  <benefit.icon className="text-white" size={24} />
+                </div>
+                <h3 className="text-lg font-bold text-gray-800 mb-3 group-hover:text-amber-700 transition-colors">
+                  {benefit.title}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {benefit.description}
+                </p>
+              </motion.div>
+            ))}
           </div>
         </div>
       </section>
@@ -248,8 +267,6 @@ const About = () => {
           </div>
         </div>
       </section>
-
-      
 
       {/* Why Choose Us */}
       <section className="py-20 bg-gradient-to-br from-amber-900/5 via-amber-800/5 to-amber-700/5">
@@ -314,43 +331,6 @@ const About = () => {
         </div>
       </section>
 
-      {/* CTA */}
-      {/* <section className="py-20">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            whileInView={{ opacity: 1, scale: 1 }}
-            className="bg-gradient-to-br from-amber-50 to-amber-100 rounded-3xl p-12 border border-amber-200"
-          >
-            <h2 className="text-4xl font-bold text-gray-800 mb-6">
-              Ready to Transform Your School's Finances?
-            </h2>
-            <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
-              Join hundreds of schools already using Raynott Edupot to streamline their financial operations.
-            </p>
-            
-            <div className="flex flex-col sm:flex-row gap-6 justify-center">
-              <motion.a
-                href="/contact"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-10 py-4 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold rounded-xl hover:shadow-2xl transition-all shadow-lg hover:from-amber-700 hover:to-amber-800"
-              >
-                Get in Touch
-              </motion.a>
-              
-              <motion.a
-                href="/features"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-                className="px-10 py-4 bg-white text-amber-700 font-bold rounded-xl hover:shadow-2xl transition-all shadow-lg border border-amber-200 hover:bg-amber-50"
-              >
-                Explore Features
-              </motion.a>
-            </div>
-          </motion.div>
-        </div>
-      </section> */}
     </div>
   );
 };

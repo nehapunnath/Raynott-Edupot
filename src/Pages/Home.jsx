@@ -108,6 +108,11 @@ const Home = ({ user, onLogout }) => {
           
           {/* Geometric patterns */}
           <div className="absolute top-20 right-20 w-40 h-40 border-2 border-amber-500/30 rounded-3xl rotate-45"></div>
+          <div className="absolute top-20 left-20 w-40 h-40 border-2 border-amber-500/30 rounded-3xl rotate-45"></div>
+          <div className="absolute bottom-40 left-400 w-24 h-24 border-2 border-amber-400/30 rounded-2xl rotate-12"></div>
+          <div className="absolute top-40 left-200 w-24 h-24 border-2 border-amber-400/30 rounded-2xl rotate-12"></div>
+          <div className="absolute bottom-20 left-200 w-40 h-40 border-2 border-amber-500/30 rounded-3xl rotate-45"></div>
+
           <div className="absolute bottom-40 left-20 w-24 h-24 border-2 border-amber-400/30 rounded-2xl rotate-12"></div>
         </div>
 
