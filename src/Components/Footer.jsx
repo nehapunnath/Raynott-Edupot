@@ -21,7 +21,7 @@ const Footer = () => {
     { label: 'Features', href: '/features' },
     { label: 'Contact', href: '/contact' },
     { label: 'Login', href: '/login' },
-    // { label: 'Privacy Policy', href: '/privacy' }
+    { label: 'Dashboard', href: '/dashboard' }
   ];
 
   const socialLinks = [
