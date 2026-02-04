@@ -93,7 +93,7 @@ const Header = ({ user, onLogout }) => {
                   whileTap={{ scale: 0.95 }}
                   className="px-8 py-3 bg-gradient-to-r from-white to-amber-50 text-amber-700 font-bold rounded-xl hover:shadow-2xl hover:from-amber-50 hover:to-white transition-all shadow-lg border border-amber-200"
                 >
-                  Login / Register
+                  Login 
                 </motion.a>
               </motion.div>
             )}
