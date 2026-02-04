@@ -30,7 +30,6 @@ const SearchSection = ({ searchCriteria, onCriteriaChange, onSearch, onClear }) 
             Date of Birth
           </label>
           <div className="relative">
-            <Calendar className="absolute left-3 top-3.5 text-gray-400" size={20} />
             <input
               type="date"
               value={searchCriteria.dob}

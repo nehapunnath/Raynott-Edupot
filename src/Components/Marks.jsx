@@ -427,7 +427,7 @@ const Marks = ({ student, onUpdateStudent }) => {
         ) : (
           <div className="space-y-6">
             {/* Overall Performance */}
-            <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
+            {/* <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
               <h4 className="font-semibold text-gray-800 mb-3">Overall Performance</h4>
               <div className="grid grid-cols-3 gap-4">
                 <div className="text-center">
@@ -448,7 +448,7 @@ const Marks = ({ student, onUpdateStudent }) => {
                   </div>
                 </div>
               </div>
-            </div>
+            </div> */}
             
             {/* Exams List */}
             {student.marks.exams.map((exam) => (

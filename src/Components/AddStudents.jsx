@@ -19,7 +19,9 @@ import {
   DollarSign,
   Briefcase,
   Award,
-  FileDigit
+  FileDigit,
+  Plus,
+  Trash2
 } from 'lucide-react';
 
 const AddStudent = ({ onAddStudent, onCancel }) => {
@@ -74,17 +76,22 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
       subjects: ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi'],
       examTypes: ['Unit Test 1', 'Unit Test 2', 'Half Yearly', 'Quarterly', 'Final Exam', 'Pre-Board'],
       gradingScale: [
-        { min: 90, grade: 'A+', color: '#059669' },
-        { min: 80, grade: 'A', color: '#2563eb' },
-        { min: 70, grade: 'B+', color: '#d97706' },
-        { min: 60, grade: 'B', color: '#ca8a04' },
-        { min: 50, grade: 'C', color: '#7c3aed' },
-        { min: 40, grade: 'D', color: '#dc2626' },
-        { min: 0, grade: 'F', color: '#991b1b' }
+        { min: 90, grade: 'A+' },
+        { min: 80, grade: 'A' },
+        { min: 70, grade: 'B+' },
+        { min: 60, grade: 'B' },
+        { min: 50, grade: 'C' },
+        { min: 40, grade: 'D' },
+        { min: 0, grade: 'F' }
       ],
       maxMarks: 100
     }
   });
+
+  // State for inline editing
+  const [newSubject, setNewSubject] = useState('');
+  const [newExamType, setNewExamType] = useState('');
+  const [newGrade, setNewGrade] = useState({ grade: '', min: '' });
 
   const calculateTotalFees = () => {
     let total = parseInt(newStudent.feeStructure.tuition) || 0;
@@ -167,7 +174,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
       feeStructure: updatedFees
     }));
     
-    // Update installment amounts
     updateInstallmentAmounts(totalFees);
   };
 
@@ -211,7 +217,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
     }));
   };
 
-  // Marks Configuration Functions
+  // Marks Configuration Functions - Updated without alerts
   const handleMarksConfigChange = (field, value) => {
     setNewStudent(prev => ({
       ...prev,
@@ -223,8 +229,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
   };
 
   const handleAddSubject = () => {
-    const newSubject = prompt('Enter new subject name:');
-    if (newSubject && newSubject.trim()) {
+    if (newSubject.trim()) {
       const updatedSubjects = [...newStudent.marksConfig.subjects, newSubject.trim()];
       setNewStudent(prev => ({
         ...prev,
@@ -233,6 +238,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           subjects: updatedSubjects
         }
       }));
+      setNewSubject('');
     }
   };
 
@@ -248,8 +254,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
   };
 
   const handleAddExamType = () => {
-    const newExamType = prompt('Enter new exam type:');
-    if (newExamType && newExamType.trim()) {
+    if (newExamType.trim()) {
       const updatedExamTypes = [...newStudent.marksConfig.examTypes, newExamType.trim()];
       setNewStudent(prev => ({
         ...prev,
@@ -258,6 +263,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           examTypes: updatedExamTypes
         }
       }));
+      setNewExamType('');
     }
   };
 
@@ -273,23 +279,23 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
   };
 
   const handleAddGrade = () => {
-    const newGrade = prompt('Enter new grade (e.g., A++):');
-    const minScore = prompt('Enter minimum percentage for this grade:');
-    const color = prompt('Enter color for this grade (hex code):', '#000000');
-    
-    if (newGrade && minScore && color) {
-      const newGradeScale = [
-        ...newStudent.marksConfig.gradingScale,
-        { min: parseInt(minScore), grade: newGrade, color }
-      ].sort((a, b) => b.min - a.min); // Sort descending
-      
-      setNewStudent(prev => ({
-        ...prev,
-        marksConfig: {
-          ...prev.marksConfig,
-          gradingScale: newGradeScale
-        }
-      }));
+    if (newGrade.grade.trim() && newGrade.min !== '') {
+      const minScore = parseInt(newGrade.min);
+      if (!isNaN(minScore)) {
+        const newGradeScale = [
+          ...newStudent.marksConfig.gradingScale,
+          { min: minScore, grade: newGrade.grade.trim() }
+        ].sort((a, b) => b.min - a.min);
+        
+        setNewStudent(prev => ({
+          ...prev,
+          marksConfig: {
+            ...prev.marksConfig,
+            gradingScale: newGradeScale
+          }
+        }));
+        setNewGrade({ grade: '', min: '' });
+      }
     }
   };
 
@@ -304,10 +310,29 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
     }));
   };
 
+  const handleUpdateGrade = (index, field, value) => {
+    const updatedScale = [...newStudent.marksConfig.gradingScale];
+    if (field === 'min') {
+      updatedScale[index][field] = parseInt(value) || 0;
+    } else {
+      updatedScale[index][field] = value;
+    }
+    
+    // Sort after update
+    updatedScale.sort((a, b) => b.min - a.min);
+    
+    setNewStudent(prev => ({
+      ...prev,
+      marksConfig: {
+        ...prev.marksConfig,
+        gradingScale: updatedScale
+      }
+    }));
+  };
+
   const handleSubmit = () => {
     const totalFees = calculateTotalFees();
     
-    // Create installments from config
     const installments = newStudent.installmentConfig.installments.map((inst, index) => ({
       id: Date.now() + index + 1,
       number: inst.number,
@@ -404,13 +429,11 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Student Aadhar Number *
                 </label>
                 <div className="relative">
-                  <FileDigit className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="text"
                     value={newStudent.basicInfo.studentAadhar}
                     onChange={(e) => handleBasicInfoChange('studentAadhar', e.target.value)}
                     className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="1234-5678-9012"
                     pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
                     required
                   />
@@ -480,7 +503,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   value={newStudent.basicInfo.admissionNo}
                   onChange={(e) => handleBasicInfoChange('admissionNo', e.target.value)}
                   className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="SCH-2024-001"
                   required
                 />
               </div>
@@ -490,7 +512,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Admission Date *
                 </label>
                 <div className="relative">
-                  <Calendar className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="date"
                     value={newStudent.basicInfo.admissionDate}
@@ -501,18 +522,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                 </div>
               </div>
               
-              <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Previous School
-                </label>
-                <input
-                  type="text"
-                  value={newStudent.basicInfo.previousSchool}
-                  onChange={(e) => handleBasicInfoChange('previousSchool', e.target.value)}
-                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  placeholder="Previous school name"
-                />
-              </div>
+             
             </div>
           </div>
 
@@ -546,7 +556,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Father's Aadhar Number *
                 </label>
                 <div className="relative">
-                  <FileDigit className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="text"
                     value={newStudent.basicInfo.fatherAadhar}
@@ -577,7 +586,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Father's Phone *
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="tel"
                     value={newStudent.basicInfo.fatherPhone}
@@ -594,7 +602,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Father's Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="email"
                     value={newStudent.basicInfo.fatherEmail}
@@ -628,7 +635,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Mother's Aadhar Number *
                 </label>
                 <div className="relative">
-                  <FileDigit className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="text"
                     value={newStudent.basicInfo.motherAadhar}
@@ -659,7 +665,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Mother's Phone *
                 </label>
                 <div className="relative">
-                  <Phone className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="tel"
                     value={newStudent.basicInfo.motherPhone}
@@ -676,7 +681,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Mother's Email
                 </label>
                 <div className="relative">
-                  <Mail className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="email"
                     value={newStudent.basicInfo.motherEmail}
@@ -692,7 +696,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           {/* Address Information */}
           <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
             <div className="flex items-center space-x-3 mb-6">
-              <Home className="text-green-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Address Information</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -757,7 +760,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           {/* Emergency Contact */}
           <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-6 border border-red-200">
             <div className="flex items-center space-x-3 mb-6">
-              <Phone className="text-red-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Emergency Contact</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -797,7 +799,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           {/* Fee Structure Section */}
           <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
             <div className="flex items-center space-x-3 mb-6">
-              <CreditCard className="text-purple-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Fee Structure</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
@@ -806,7 +807,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Tuition Fee
                 </label>
                 <div className="relative">
-                  <DollarSign className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={newStudent.feeStructure.tuition}
@@ -821,7 +821,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Books & Stationery
                 </label>
                 <div className="relative">
-                  <BookOpen className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={newStudent.feeStructure.books}
@@ -845,7 +844,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Uniform
                 </label>
                 <div className="relative">
-                  <Shirt className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={newStudent.feeStructure.uniform}
@@ -869,7 +867,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Transport
                 </label>
                 <div className="relative">
-                  <Briefcase className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={newStudent.feeStructure.transport}
@@ -893,7 +890,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   Other Fees
                 </label>
                 <div className="relative">
-                  <FileText className="absolute left-3 top-3.5 text-gray-400" size={20} />
                   <input
                     type="number"
                     value={newStudent.feeStructure.other}
@@ -974,29 +970,44 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
               <h3 className="text-lg font-semibold text-gray-800">Academic Marks Configuration</h3>
             </div>
             
-            <div className="space-y-6">
+            <div className="space-y-8">
               {/* Subjects Configuration */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Subjects</label>
+                </div>
+                
+                {/* Add Subject Form */}
+                <div className="flex items-center space-x-2 mb-4">
+                  <input
+                    type="text"
+                    value={newSubject}
+                    onChange={(e) => setNewSubject(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Enter subject name"
+                  />
                   <button
                     type="button"
                     onClick={handleAddSubject}
-                    className="text-xs px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-2"
                   >
-                    + Add Subject
+                    <Plus size={16} />
+                    <span>Add</span>
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
+                
+                {/* Subjects List */}
+                <div className="space-y-2">
                   {newStudent.marksConfig.subjects.map((subject, index) => (
-                    <div key={index} className="px-3 py-1.5 bg-white rounded-lg border border-gray-300 flex items-center space-x-2">
-                      <span className="text-sm">{subject}</span>
+                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
+                      <span className="text-sm font-medium text-gray-800">{subject}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveSubject(index)}
-                        className="text-red-500 hover:text-red-700 text-sm"
+                        className="text-red-600 hover:text-red-800"
+                        title="Remove subject"
                       >
-                        ×
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -1007,24 +1018,39 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Exam Types</label>
+                </div>
+                
+                {/* Add Exam Type Form */}
+                <div className="flex items-center space-x-2 mb-4">
+                  <input
+                    type="text"
+                    value={newExamType}
+                    onChange={(e) => setNewExamType(e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Enter exam type"
+                  />
                   <button
                     type="button"
                     onClick={handleAddExamType}
-                    className="text-xs px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
+                    className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center space-x-2"
                   >
-                    + Add Exam Type
+                    <Plus size={16} />
+                    <span>Add</span>
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2 mb-4">
+                
+                {/* Exam Types List */}
+                <div className="space-y-2">
                   {newStudent.marksConfig.examTypes.map((examType, index) => (
-                    <div key={index} className="px-3 py-1.5 bg-white rounded-lg border border-gray-300 flex items-center space-x-2">
-                      <span className="text-sm">{examType}</span>
+                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
+                      <span className="text-sm font-medium text-gray-800">{examType}</span>
                       <button
                         type="button"
                         onClick={() => handleRemoveExamType(index)}
-                        className="text-red-500 hover:text-red-700 text-sm"
+                        className="text-red-600 hover:text-red-800"
+                        title="Remove exam type"
                       >
-                        ×
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}
@@ -1035,46 +1061,64 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Grading Scale</label>
+                </div>
+                
+                {/* Add Grade Form */}
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  <input
+                    type="text"
+                    value={newGrade.grade}
+                    onChange={(e) => setNewGrade(prev => ({ ...prev, grade: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Grade (e.g., A++)"
+                  />
+                  <input
+                    type="number"
+                    value={newGrade.min}
+                    onChange={(e) => setNewGrade(prev => ({ ...prev, min: e.target.value }))}
+                    className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                    placeholder="Min %"
+                    min="0"
+                    max="100"
+                  />
                   <button
                     type="button"
                     onClick={handleAddGrade}
-                    className="text-xs px-3 py-1 bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200"
+                    className="col-span-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center justify-center space-x-2"
                   >
-                    + Add Grade
+                    <Plus size={16} />
+                    <span>Add Grade</span>
                   </button>
                 </div>
-                <div className="space-y-2 mb-4">
+                
+                {/* Grading Scale List */}
+                <div className="space-y-2">
                   {newStudent.marksConfig.gradingScale.map((grade, index) => (
-                    <div key={index} className="flex items-center space-x-3 p-2 bg-white rounded-lg border border-gray-300">
-                      <div className="w-20 text-sm text-gray-600">≥ {grade.min}%</div>
-                      <div 
-                        className="px-3 py-1 rounded text-sm font-medium text-white"
-                        style={{ backgroundColor: grade.color }}
-                      >
-                        {grade.grade}
+                    <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
+                      <div className="flex items-center space-x-4">
+                        <input
+                          type="number"
+                          value={grade.min}
+                          onChange={(e) => handleUpdateGrade(index, 'min', e.target.value)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                          min="0"
+                          max="100"
+                        />
+                        <span className="text-gray-500">%</span>
+                        <input
+                          type="text"
+                          value={grade.grade}
+                          onChange={(e) => handleUpdateGrade(index, 'grade', e.target.value)}
+                          className="w-20 px-2 py-1 border border-gray-300 rounded text-sm"
+                        />
                       </div>
-                      <input
-                        type="color"
-                        value={grade.color}
-                        onChange={(e) => {
-                          const newScale = [...newStudent.marksConfig.gradingScale];
-                          newScale[index].color = e.target.value;
-                          setNewStudent(prev => ({
-                            ...prev,
-                            marksConfig: {
-                              ...prev.marksConfig,
-                              gradingScale: newScale
-                            }
-                          }));
-                        }}
-                        className="w-6 h-6 cursor-pointer"
-                      />
                       <button
                         type="button"
                         onClick={() => handleRemoveGrade(index)}
-                        className="text-red-500 hover:text-red-700 text-sm"
+                        className="text-red-600 hover:text-red-800"
+                        title="Remove grade"
                       >
-                        ×
+                        <Trash2 size={16} />
                       </button>
                     </div>
                   ))}

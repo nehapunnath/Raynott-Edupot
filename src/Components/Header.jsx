@@ -134,7 +134,7 @@ const Header = ({ user, onLogout }) => {
                     className="block px-4 py-4 bg-gradient-to-r from-amber-600 to-amber-700 text-white font-bold rounded-lg hover:from-amber-700 hover:to-amber-800 transition text-center mt-4"
                     onClick={() => setIsMenuOpen(false)}
                   >
-                    Login / Register
+                    Login 
                   </a>
                 )}
               </div>
