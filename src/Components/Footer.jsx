@@ -22,7 +22,7 @@ const Footer = () => {
     { label: 'Contact', href: '/contact' },
     { label: 'Login', href: '/login' },
     { label: 'Dashboard', href: '/dashboard' },
-    { label: 'Admin Dashboard', href: '/admin/dashboard' }
+    // { label: 'Admin Dashboard', href: '/admin/dashboard' }
 
   ];
 
