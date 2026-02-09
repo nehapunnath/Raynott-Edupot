@@ -18,7 +18,6 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('schools');
   const [expandedSchools, setExpandedSchools] = useState([]);
 
-  // Sample initial data
   const sampleSchools = [
     {
       id: 1,
