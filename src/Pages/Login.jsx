@@ -26,23 +26,35 @@ const Login = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
+  e.preventDefault();
+  setError('');
+  setLoading(true);
 
-    const result = await AuthApi.login(formData.email.trim(), formData.password);
+  const result = await AuthApi.login(formData.email.trim(), formData.password);
 
-    setLoading(false);
+  setLoading(false);
 
-    if (result.success) {
-      // Success → pass user to parent component / context / redux
-      // onLogin(result.user);
-      navigate('/admin/dashboard');
-      toast.success("Admin Logged in Successfully!!!")
+  if (result.success) {
+    const user = result.user;
+
+    toast.success("Logged in successfully!");
+
+    // Redirect based on role
+    if (user.isAdmin) {
+      navigate('/admin/dashboard');           // super admin
+    } else if (user.schoolId && user.role === 'school_admin') {
+      navigate('/dashboard');                 // school admin dashboard
+      // You can also store schoolId in context/localStorage if needed
+      localStorage.setItem('schoolId', user.schoolId);
     } else {
-      setError(result.error || 'Login failed. Please try again.');
+      toast.warning("Unknown user role. Contact support.");
+      // Or redirect to a generic page
+      navigate('/');
     }
-  };
+  } else {
+    setError(result.error || 'Login failed. Please try again.');
+  }
+};
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/50 via-white to-amber-100/30 flex items-center justify-center p-4">
