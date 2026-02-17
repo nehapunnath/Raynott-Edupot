@@ -2,7 +2,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { BookOpen, School, Calculator, ShieldCheck, LogIn } from 'lucide-react';
-import AuthApi from '../service/AuthApi';   // ← import here
+import AuthApi from '../service/AuthApi';   
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 

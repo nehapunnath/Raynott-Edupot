@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { auth } from '../service/firebase';
-import SchoolApi from '../service/SchoolApi';  // adjust path if needed
+import SchoolApi from '../service/SchoolApi';  
 import { useNavigate } from 'react-router-dom';
 
 const AdminDashboard = ({ user, onLogout }) => {

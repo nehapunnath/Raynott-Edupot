@@ -426,29 +426,7 @@ const Marks = ({ student, onUpdateStudent }) => {
           </div>
         ) : (
           <div className="space-y-6">
-            {/* Overall Performance */}
-            {/* <div className="p-4 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200">
-              <h4 className="font-semibold text-gray-800 mb-3">Overall Performance</h4>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Total Marks</div>
-                  <div className="text-xl font-bold text-blue-700">{student.marks.totalMarks}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Average %</div>
-                  <div className="text-xl font-bold text-green-700">{student.marks.averagePercentage}%</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-sm text-gray-600">Grade</div>
-                  <div 
-                    className="text-xl font-bold"
-                    style={{ color: getGradeColor(student.marks.overallGrade) }}
-                  >
-                    {student.marks.overallGrade}
-                  </div>
-                </div>
-              </div>
-            </div> */}
+            
             
             {/* Exams List */}
             {student.marks.exams.map((exam) => (

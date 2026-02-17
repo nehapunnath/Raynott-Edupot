@@ -24,74 +24,85 @@ import {
   Trash2
 } from 'lucide-react';
 
-const AddStudent = ({ onAddStudent, onCancel }) => {
-  const [newStudent, setNewStudent] = useState({
-    basicInfo: {
-      name: '',
-      dob: '',
-      studentAadhar: '',
-      fatherName: '',
-      fatherAadhar: '',
-      motherName: '',
-      motherAadhar: '',
-      fatherPhone: '',
-      motherPhone: '',
-      fatherOccupation: '',
-      motherOccupation: '',
-      fatherEmail: '',
-      motherEmail: '',
-      address: '',
-      city: '',
-      state: '',
-      pincode: '',
-      grade: '',
-      section: '',
-      admissionNo: '',
-      admissionDate: new Date().toISOString().split('T')[0],
-      previousSchool: '',
-      bloodGroup: '',
-      emergencyContact: '',
-      emergencyPhone: ''
-    },
-    feeStructure: {
-      tuition: 0,
-      books: 0,
-      uniform: 0,
-      transport: 0,
-      other: 0,
-      total: 0,
-      includesBooks: false,
-      includesUniform: false,
-      includesTransport: false
-    },
-    installmentConfig: {
-      numberOfInstallments: 3,
-      installments: [
-        { number: 1, dueDate: '', amount: 0 },
-        { number: 2, dueDate: '', amount: 0 },
-        { number: 3, dueDate: '', amount: 0 }
-      ]
-    },
-    marksConfig: {
-      subjects: ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi'],
-      examTypes: ['Unit Test 1', 'Unit Test 2', 'Half Yearly', 'Quarterly', 'Final Exam', 'Pre-Board'],
-      gradingScale: [
-        { min: 90, grade: 'A+' },
-        { min: 80, grade: 'A' },
-        { min: 70, grade: 'B+' },
-        { min: 60, grade: 'B' },
-        { min: 50, grade: 'C' },
-        { min: 40, grade: 'D' },
-        { min: 0, grade: 'F' }
-      ],
-      maxMarks: 100
-    }
-  });
+// ────────────────────────────────────────────────
+//  IMPORTANT: adjust path according to your project structure
+// ────────────────────────────────────────────────
+import StudentApi from '../service/StudentApi';  
+import { toast } from 'react-toastify';
 
-  // State for inline editing
+const AddStudent = ({ onStudentAdded, onCancel }) => {
+  const initialStudentState = {
+  basicInfo: {
+    name: '',
+    dob: '',
+    studentAadhar: '',
+    fatherName: '',
+    fatherAadhar: '',
+    motherName: '',
+    motherAadhar: '',
+    fatherPhone: '',
+    motherPhone: '',
+    fatherOccupation: '',
+    motherOccupation: '',
+    fatherEmail: '',
+    motherEmail: '',
+    address: '',
+    city: '',
+    state: '',
+    pincode: '',
+    grade: '',
+    section: '',
+    admissionNo: '',
+    admissionDate: new Date().toISOString().split('T')[0],
+    previousSchool: '',
+    bloodGroup: '',
+    emergencyContact: '',
+    emergencyPhone: ''
+  },
+  feeStructure: {
+    tuition: '',
+    books: '',
+    uniform: '',
+    transport: '',
+    other: '',
+    total: 0,
+    includesBooks: false,
+    includesUniform: false,
+    includesTransport: false
+  },
+  installmentConfig: {
+    numberOfInstallments: 3,
+    installments: [
+      { number: 1, dueDate: new Date().toISOString().split('T')[0], amount: '' },
+      { number: 2, dueDate: '', amount: '' },
+      { number: 3, dueDate: '', amount: '' }
+    ]
+  },
+  marksConfig: {
+    subjects: [],           // ← changed: start empty
+    examTypes: [],          // ← changed: start empty
+    gradingScale: [],       // ← changed: start empty
+    maxMarks: ''
+  }
+};
+  ;
+
+  const [newStudent, setNewStudent] = useState(initialStudentState);
   const [newSubject, setNewSubject] = useState('');
   const [newExamType, setNewExamType] = useState('');
   const [newGrade, setNewGrade] = useState({ grade: '', min: '' });
+
+  // API states
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const resetForm = () => {
+  setNewStudent(initialStudentState);
+  setNewSubject('');
+  setNewExamType('');
+  setNewGrade({ grade: '', min: '' });
+  setError(null);
+};
 
   const calculateTotalFees = () => {
     let total = parseInt(newStudent.feeStructure.tuition) || 0;
@@ -163,7 +174,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
   const handleFeeChange = (field, value) => {
     const updatedFees = {
       ...newStudent.feeStructure,
-      [field]: value
+      [field]: field.includes('include') ? !!value : Number(value) || 0
     };
     
     const totalFees = calculateTotalFees();
@@ -205,7 +216,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
     const updatedInstallments = [...newStudent.installmentConfig.installments];
     updatedInstallments[index] = {
       ...updatedInstallments[index],
-      [field]: field === 'amount' ? parseInt(value) || 0 : value
+      [field]: field === 'amount' ? Number(value) || 0 : value
     };
 
     setNewStudent(prev => ({
@@ -217,13 +228,12 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
     }));
   };
 
-  // Marks Configuration Functions - Updated without alerts
   const handleMarksConfigChange = (field, value) => {
     setNewStudent(prev => ({
       ...prev,
       marksConfig: {
         ...prev.marksConfig,
-        [field]: field === 'maxMarks' ? parseInt(value) || 100 : value
+        [field]: field === 'maxMarks' ? Number(value) || 100 : value
       }
     }));
   };
@@ -318,7 +328,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
       updatedScale[index][field] = value;
     }
     
-    // Sort after update
     updatedScale.sort((a, b) => b.min - a.min);
     
     setNewStudent(prev => ({
@@ -330,49 +339,70 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
     }));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+  setLoading(true);
+  setError(null);
+
+  try {
     const totalFees = calculateTotalFees();
-    
+
     const installments = newStudent.installmentConfig.installments.map((inst, index) => ({
       id: Date.now() + index + 1,
       number: inst.number,
-      amount: inst.amount,
+      amount: Number(inst.amount) || 0,
       paid: 0,
-      dueDate: inst.dueDate,
+      dueDate: inst.dueDate || '',
       paidDate: '',
       status: 'pending',
-      paymentMode: ''
+      paymentMode: '',
+      notes: ''
     }));
 
-    const student = {
-      id: Date.now(),
+    const studentData = {
       basicInfo: { ...newStudent.basicInfo },
-      feeStructure: {
-        ...newStudent.feeStructure,
-        total: totalFees
-      },
+      feeStructure: { ...newStudent.feeStructure, total: totalFees },
       installments,
       marks: {
-        exams: [],
-        totalMarks: 0,
-        averagePercentage: 0,
-        overallGrade: '',
         subjects: newStudent.marksConfig.subjects,
         examTypes: newStudent.marksConfig.examTypes,
         gradingScale: newStudent.marksConfig.gradingScale,
-        maxMarks: newStudent.marksConfig.maxMarks
+        maxMarks: Number(newStudent.marksConfig.maxMarks) || 100,
+        exams: [],
+        totalMarks: 0,
+        averagePercentage: 0,
+        overallGrade: ''
       },
       totalPaid: 0,
-      pendingAmount: totalFees,
-      status: 'active'
+      pendingAmount: totalFees
     };
 
-    onAddStudent(student);
-  };
+    const result = await StudentApi.createStudent(studentData);
+
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create student');
+    }
+
+    toast.success(`Student created successfully!\nStudent ID: ${result.studentId}`);
+
+    if (onStudentAdded) {
+      onStudentAdded(result.student);
+    }
+
+    // Reset form after success
+    resetForm();
+
+  } catch (err) {
+    console.error('Student creation failed:', err);
+    setError(err.message || 'Could not create student. Please check your input.');
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="max-w-7xl mx-auto">
       <div className="bg-white rounded-2xl shadow-xl p-8">
+
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Add New Student</h2>
@@ -380,15 +410,25 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
           </div>
           <button
             onClick={onCancel}
-            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center space-x-2"
+            disabled={loading}
+            className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 flex items-center space-x-2 disabled:opacity-50"
           >
             <X size={20} />
             <span>Cancel</span>
           </button>
         </div>
 
+        {error && (
+          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
+            {error}
+          </div>
+        )}
+
         <div className="space-y-8">
-          {/* Student Information Section */}
+
+          {/* ────────────────────────────────────────────────
+               STUDENT INFORMATION
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-amber-50 to-amber-100 rounded-xl p-6 border border-amber-200">
             <div className="flex items-center space-x-3 mb-6">
               <User className="text-amber-600" size={24} />
@@ -396,9 +436,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Full Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Full Name *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.name}
@@ -409,41 +447,28 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Date of Birth *
-                </label>
-                <div className="relative">
-                  <Calendar className="absolute left-3 top-3.5 text-gray-400" size={20} />
-                  <input
-                    type="date"
-                    value={newStudent.basicInfo.dob}
-                    onChange={(e) => handleBasicInfoChange('dob', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date of Birth *</label>
+                <input
+                  type="date"
+                  value={newStudent.basicInfo.dob}
+                  onChange={(e) => handleBasicInfoChange('dob', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  required
+                />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Student Aadhar Number *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={newStudent.basicInfo.studentAadhar}
-                    onChange={(e) => handleBasicInfoChange('studentAadhar', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Student Aadhar Number *</label>
+                <input
+                  type="text"
+                  value={newStudent.basicInfo.studentAadhar}
+                  onChange={(e) => handleBasicInfoChange('studentAadhar', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
+                  required
+                />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Blood Group
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Blood Group</label>
                 <select
                   value={newStudent.basicInfo.bloodGroup}
                   onChange={(e) => handleBasicInfoChange('bloodGroup', e.target.value)}
@@ -460,11 +485,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   <option value="AB-">AB-</option>
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Grade/Class *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Grade/Class *</label>
                 <select
                   value={newStudent.basicInfo.grade}
                   onChange={(e) => handleBasicInfoChange('grade', e.target.value)}
@@ -480,11 +502,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   ))}
                 </select>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Section
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Section</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.section}
@@ -493,11 +512,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   placeholder="A, B, C..."
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Admission Number *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admission Number *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.admissionNo}
@@ -506,41 +522,33 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Admission Date *
-                </label>
-                <div className="relative">
-                  <input
-                    type="date"
-                    value={newStudent.basicInfo.admissionDate}
-                    onChange={(e) => handleBasicInfoChange('admissionDate', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Admission Date *</label>
+                <input
+                  type="date"
+                  value={newStudent.basicInfo.admissionDate}
+                  onChange={(e) => handleBasicInfoChange('admissionDate', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  required
+                />
               </div>
-              
-             
             </div>
           </div>
 
-          {/* Parent Information Section */}
+          {/* ────────────────────────────────────────────────
+               PARENT INFORMATION
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
             <div className="flex items-center space-x-3 mb-6">
               <User className="text-blue-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Parent Information</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Father's Information */}
               <div className="md:col-span-2">
                 <h4 className="font-semibold text-gray-700 mb-4 border-b pb-2">Father's Details</h4>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father's Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Name *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.fatherName}
@@ -550,28 +558,19 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father's Aadhar Number *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={newStudent.basicInfo.fatherAadhar}
-                    onChange={(e) => handleBasicInfoChange('fatherAadhar', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="1234-5678-9012"
-                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Aadhar Number *</label>
+                <input
+                  type="text"
+                  value={newStudent.basicInfo.fatherAadhar}
+                  onChange={(e) => handleBasicInfoChange('fatherAadhar', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
+                  required
+                />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father's Occupation
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Occupation</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.fatherOccupation}
@@ -580,46 +579,33 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   placeholder="Occupation"
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father's Phone *
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={newStudent.basicInfo.fatherPhone}
-                    onChange={(e) => handleBasicInfoChange('fatherPhone', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="9876543210"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Phone *</label>
+                <input
+                  type="tel"
+                  value={newStudent.basicInfo.fatherPhone}
+                  onChange={(e) => handleBasicInfoChange('fatherPhone', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="9876543210"
+                  required
+                />
               </div>
-              
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Father's Email
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={newStudent.basicInfo.fatherEmail}
-                    onChange={(e) => handleBasicInfoChange('fatherEmail', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="father@email.com"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Father's Email</label>
+                <input
+                  type="email"
+                  value={newStudent.basicInfo.fatherEmail}
+                  onChange={(e) => handleBasicInfoChange('fatherEmail', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="father@email.com"
+                />
               </div>
 
-              {/* Mother's Information */}
               <div className="md:col-span-2 mt-6">
                 <h4 className="font-semibold text-gray-700 mb-4 border-b pb-2">Mother's Details</h4>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mother's Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Name *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.motherName}
@@ -629,28 +615,19 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mother's Aadhar Number *
-                </label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    value={newStudent.basicInfo.motherAadhar}
-                    onChange={(e) => handleBasicInfoChange('motherAadhar', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="1234-5678-9012"
-                    pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Aadhar Number *</label>
+                <input
+                  type="text"
+                  value={newStudent.basicInfo.motherAadhar}
+                  onChange={(e) => handleBasicInfoChange('motherAadhar', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  pattern="[0-9]{4}-[0-9]{4}-[0-9]{4}"
+                  required
+                />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mother's Occupation
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Occupation</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.motherOccupation}
@@ -659,50 +636,41 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   placeholder="Occupation"
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mother's Phone *
-                </label>
-                <div className="relative">
-                  <input
-                    type="tel"
-                    value={newStudent.basicInfo.motherPhone}
-                    onChange={(e) => handleBasicInfoChange('motherPhone', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="9876543211"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Phone *</label>
+                <input
+                  type="tel"
+                  value={newStudent.basicInfo.motherPhone}
+                  onChange={(e) => handleBasicInfoChange('motherPhone', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="9876543211"
+                  required
+                />
               </div>
-              
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mother's Email
-                </label>
-                <div className="relative">
-                  <input
-                    type="email"
-                    value={newStudent.basicInfo.motherEmail}
-                    onChange={(e) => handleBasicInfoChange('motherEmail', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="mother@email.com"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Mother's Email</label>
+                <input
+                  type="email"
+                  value={newStudent.basicInfo.motherEmail}
+                  onChange={(e) => handleBasicInfoChange('motherEmail', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="mother@email.com"
+                />
               </div>
             </div>
           </div>
 
-          {/* Address Information */}
+          {/* ────────────────────────────────────────────────
+               ADDRESS INFORMATION
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-green-50 to-green-100 rounded-xl p-6 border border-green-200">
             <div className="flex items-center space-x-3 mb-6">
+              <Home className="text-green-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Address Information</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="md:col-span-2">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Address *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Address *</label>
                 <textarea
                   value={newStudent.basicInfo.address}
                   onChange={(e) => handleBasicInfoChange('address', e.target.value)}
@@ -712,11 +680,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  City *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">City *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.city}
@@ -726,11 +691,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  State *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">State *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.state}
@@ -740,11 +702,8 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Pincode *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Pincode *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.pincode}
@@ -757,16 +716,17 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
             </div>
           </div>
 
-          {/* Emergency Contact */}
+          {/* ────────────────────────────────────────────────
+               EMERGENCY CONTACT
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-red-50 to-red-100 rounded-xl p-6 border border-red-200">
             <div className="flex items-center space-x-3 mb-6">
+              <Phone className="text-red-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Emergency Contact</h3>
             </div>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Emergency Contact Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Contact Name *</label>
                 <input
                   type="text"
                   value={newStudent.basicInfo.emergencyContact}
@@ -776,58 +736,47 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   required
                 />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Emergency Phone *
-                </label>
-                <div className="relative">
-                  <Phone className="absolute left-3 top-3.5 text-gray-400" size={20} />
-                  <input
-                    type="tel"
-                    value={newStudent.basicInfo.emergencyPhone}
-                    onChange={(e) => handleBasicInfoChange('emergencyPhone', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="9876543212"
-                    required
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Emergency Phone *</label>
+                <input
+                  type="tel"
+                  value={newStudent.basicInfo.emergencyPhone}
+                  onChange={(e) => handleBasicInfoChange('emergencyPhone', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="9876543212"
+                  required
+                />
               </div>
             </div>
           </div>
 
-          {/* Fee Structure Section */}
+          {/* ────────────────────────────────────────────────
+               FEE STRUCTURE + INSTALLMENTS
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
             <div className="flex items-center space-x-3 mb-6">
+              <Calculator className="text-purple-600" size={24} />
               <h3 className="text-lg font-semibold text-gray-800">Fee Structure</h3>
             </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Tuition Fee
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newStudent.feeStructure.tuition}
-                    onChange={(e) => handleFeeChange('tuition', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Tuition Fee</label>
+                <input
+                  type="number"
+                  value={newStudent.feeStructure.tuition || ''}
+                  onChange={(e) => handleFeeChange('tuition', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Books & Stationery
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newStudent.feeStructure.books}
-                    onChange={(e) => handleFeeChange('books', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Books & Stationery</label>
+                <input
+                  type="number"
+                  value={newStudent.feeStructure.books || ''}
+                  onChange={(e) => handleFeeChange('books', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
                 <label className="inline-flex items-center mt-2">
                   <input
                     type="checkbox"
@@ -838,19 +787,14 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   <span className="ml-2 text-sm text-gray-600">Include in total</span>
                 </label>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Uniform
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newStudent.feeStructure.uniform}
-                    onChange={(e) => handleFeeChange('uniform', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Uniform</label>
+                <input
+                  type="number"
+                  value={newStudent.feeStructure.uniform || ''}
+                  onChange={(e) => handleFeeChange('uniform', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
                 <label className="inline-flex items-center mt-2">
                   <input
                     type="checkbox"
@@ -861,19 +805,14 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   <span className="ml-2 text-sm text-gray-600">Include in total</span>
                 </label>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Transport
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newStudent.feeStructure.transport}
-                    onChange={(e) => handleFeeChange('transport', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Transport</label>
+                <input
+                  type="number"
+                  value={newStudent.feeStructure.transport || ''}
+                  onChange={(e) => handleFeeChange('transport', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                />
                 <label className="inline-flex items-center mt-2">
                   <input
                     type="checkbox"
@@ -884,22 +823,16 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                   <span className="ml-2 text-sm text-gray-600">Include in total</span>
                 </label>
               </div>
-              
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Other Fees
-                </label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={newStudent.feeStructure.other}
-                    onChange={(e) => handleFeeChange('other', e.target.value)}
-                    className="w-full pl-10 px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Miscellaneous fees"
-                  />
-                </div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Other Fees</label>
+                <input
+                  type="number"
+                  value={newStudent.feeStructure.other || ''}
+                  onChange={(e) => handleFeeChange('other', e.target.value)}
+                  className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                  placeholder="Miscellaneous fees"
+                />
               </div>
-              
               <div className="bg-white p-4 rounded-lg border border-gray-200">
                 <div className="text-center">
                   <div className="text-sm text-gray-600">Total Fees</div>
@@ -918,9 +851,7 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
               </div>
               
               <div className="mb-6">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Number of Installments
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Number of Installments</label>
                 <select
                   value={newStudent.installmentConfig.numberOfInstallments}
                   onChange={(e) => handleInstallmentConfigChange('numberOfInstallments', e.target.value)}
@@ -941,15 +872,13 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                       </label>
                       <input
                         type="number"
-                        value={inst.amount}
+                        value={inst.amount || ''}
                         onChange={(e) => handleInstallmentChange(index, 'amount', e.target.value)}
                         className="w-full px-3 py-2 border border-gray-300 rounded-lg"
                       />
                     </div>
                     <div className="flex-1">
-                      <label className="block text-sm text-gray-600 mb-1">
-                        Due Date
-                      </label>
+                      <label className="block text-sm text-gray-600 mb-1">Due Date</label>
                       <input
                         type="date"
                         value={inst.dueDate}
@@ -963,7 +892,9 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
             </div>
           </div>
 
-          {/* Marks Configuration Section */}
+          {/* ────────────────────────────────────────────────
+               MARKS / ACADEMIC CONFIGURATION
+          ──────────────────────────────────────────────── */}
           <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl p-6 border border-indigo-200">
             <div className="flex items-center space-x-3 mb-6">
               <Award className="text-indigo-600" size={24} />
@@ -971,13 +902,11 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
             </div>
             
             <div className="space-y-8">
-              {/* Subjects Configuration */}
+              {/* Subjects */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Subjects</label>
                 </div>
-                
-                {/* Add Subject Form */}
                 <div className="flex items-center space-x-2 mb-4">
                   <input
                     type="text"
@@ -995,8 +924,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                     <span>Add</span>
                   </button>
                 </div>
-                
-                {/* Subjects List */}
                 <div className="space-y-2">
                   {newStudent.marksConfig.subjects.map((subject, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
@@ -1005,7 +932,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                         type="button"
                         onClick={() => handleRemoveSubject(index)}
                         className="text-red-600 hover:text-red-800"
-                        title="Remove subject"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1014,13 +940,11 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                 </div>
               </div>
 
-              {/* Exam Types Configuration */}
+              {/* Exam Types */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Exam Types</label>
                 </div>
-                
-                {/* Add Exam Type Form */}
                 <div className="flex items-center space-x-2 mb-4">
                   <input
                     type="text"
@@ -1038,8 +962,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                     <span>Add</span>
                   </button>
                 </div>
-                
-                {/* Exam Types List */}
                 <div className="space-y-2">
                   {newStudent.marksConfig.examTypes.map((examType, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
@@ -1048,7 +970,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                         type="button"
                         onClick={() => handleRemoveExamType(index)}
                         className="text-red-600 hover:text-red-800"
-                        title="Remove exam type"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1057,13 +978,11 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                 </div>
               </div>
 
-              {/* Grading Scale Configuration */}
+              {/* Grading Scale */}
               <div>
                 <div className="flex justify-between items-center mb-4">
                   <label className="text-sm font-medium text-gray-700">Grading Scale</label>
                 </div>
-                
-                {/* Add Grade Form */}
                 <div className="grid grid-cols-2 gap-2 mb-4">
                   <input
                     type="text"
@@ -1090,8 +1009,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                     <span>Add Grade</span>
                   </button>
                 </div>
-                
-                {/* Grading Scale List */}
                 <div className="space-y-2">
                   {newStudent.marksConfig.gradingScale.map((grade, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-white rounded-lg border border-gray-300">
@@ -1116,7 +1033,6 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                         type="button"
                         onClick={() => handleRemoveGrade(index)}
                         className="text-red-600 hover:text-red-800"
-                        title="Remove grade"
                       >
                         <Trash2 size={16} />
                       </button>
@@ -1125,11 +1041,9 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
                 </div>
               </div>
 
-              {/* Maximum Marks Configuration */}
+              {/* Max Marks */}
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Maximum Marks per Subject
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Marks per Subject</label>
                 <input
                   type="number"
                   value={newStudent.marksConfig.maxMarks}
@@ -1142,22 +1056,40 @@ const AddStudent = ({ onAddStudent, onCancel }) => {
             </div>
           </div>
 
-          {/* Submit Button */}
-          <div className="flex justify-end space-x-4">
+          {/* ────────────────────────────────────────────────
+               ACTION BUTTONS
+          ──────────────────────────────────────────────── */}
+          <div className="flex justify-end space-x-4 mt-10">
             <button
               onClick={onCancel}
-              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+              disabled={loading}
+              className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={handleSubmit}
-              className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2"
+              disabled={loading}
+              className={`px-6 py-3 text-white rounded-lg font-medium flex items-center space-x-2 ${
+                loading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800'
+              }`}
             >
-              <Save size={20} />
-              <span>Save Student</span>
+              {loading ? (
+                <>
+                  <div className="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full" />
+                  <span>Saving...</span>
+                </>
+              ) : (
+                <>
+                  <Save size={20} />
+                  <span>Save Student</span>
+                </>
+              )}
             </button>
           </div>
+
         </div>
       </div>
     </div>
