@@ -2,194 +2,90 @@
 import React, { useState, useEffect } from 'react';
 import { LogOut, Users, UserPlus, List, BarChart3, Search } from 'lucide-react';
 import StudentList from '../Components/StudentList';
-import AllStudents from '../Components/AllStudents'; // Add this import
+import AllStudents from '../Components/AllStudents'; 
 import StudentDetails from '../Components/StudentDetails';
 import AddStudent from '../Components/AddStudents';
+import StudentApi from '../service/StudentApi';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('allStudents'); // Change default tab
+  const [activeTab, setActiveTab] = useState('allStudents'); 
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
+  const [error, setError] = useState(null);
+
 
   // Initialize with sample data
   useEffect(() => {
-    const sampleStudents = [
-      {
-  id: 1,
-  basicInfo: {
-    name: 'Rahul Sharma',
-    dob: '2010-05-15',
-    studentAadhar: '1234-5678-9012',
-    fatherName: 'Rajesh Sharma',
-    fatherAadhar: '2345-6789-0123',
-    motherName: 'Priya Sharma',
-    motherAadhar: '3456-7890-1234',
-    fatherPhone: '9876543210',
-    motherPhone: '9876543211',
-    fatherOccupation: 'Software Engineer',
-    motherOccupation: 'Doctor',
-    fatherEmail: 'rajesh.sharma@email.com',
-    motherEmail: 'priya.sharma@email.com',
-    address: '123 Main Street, Bandra West',
-    city: 'Mumbai',
-    state: 'Maharashtra',
-    pincode: '400050',
-    grade: '10',
-    section: 'A',
-    admissionNo: 'SCH2024001',
-    admissionDate: '2024-04-01',
-    bloodGroup: 'B+',
-    emergencyContact: 'Ramesh Sharma (Uncle)',
-    emergencyPhone: '9876543212'
-  },
-  feeStructure: {
-    tuition: 25000,
-    books: 5000,
-    uniform: 3000,
-    transport: 2000,
-    other: 1000,
-    total: 36000,
-    includesBooks: true,
-    includesUniform: true,
-    includesTransport: true
-  },
-  installmentConfig: {
-    numberOfInstallments: 3,
-    installments: [
-      { number: 1, dueDate: '2024-04-10', amount: 12000 },
-      { number: 2, dueDate: '2024-07-10', amount: 12000 },
-      { number: 3, dueDate: '2024-10-10', amount: 12000 }
-    ]
-  },
-  marksConfig: {
-    subjects: ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi'],
-    examTypes: ['Unit Test 1', 'Unit Test 2', 'Half Yearly', 'Quarterly', 'Final Exam', 'Pre-Board'],
-    gradingScale: [
-      { min: 90, grade: 'A+' },
-      { min: 80, grade: 'A' },
-      { min: 70, grade: 'B+' },
-      { min: 60, grade: 'B' },
-      { min: 50, grade: 'C' },
-      { min: 40, grade: 'D' },
-      { min: 0, grade: 'F' }
-    ],
-    maxMarks: 100
-  },
-  installments: [
-    { 
-      id: 1, 
-      number: 1, 
-      amount: 12000, 
-      paid: 12000, 
-      dueDate: '2024-04-10', 
-      paidDate: '2024-04-05', 
-      status: 'paid',
-      paymentMode: 'Online',
-      reference: 'TXN123456',
-      notes: 'Paid via UPI'
-    },
-    { 
-      id: 2, 
-      number: 2, 
-      amount: 12000, 
-      paid: 12000, 
-      dueDate: '2024-07-10', 
-      paidDate: '2024-07-01', 
-      status: 'paid',
-      paymentMode: 'Cash',
-      reference: '',
-      notes: 'Cash payment at school office'
-    },
-    { 
-      id: 3, 
-      number: 3, 
-      amount: 12000, 
-      paid: 6000, 
-      dueDate: '2024-10-10', 
-      paidDate: '2024-10-01', 
-      status: 'partial',
-      paymentMode: 'Cheque',
-      reference: 'CHQ789012',
-      notes: 'Cheque number 789012, remaining will be paid next month'
-    }
-  ],
-  marks: {
-    exams: [
-      {
-        id: 1,
-        examType: 'Unit Test 1',
-        examDate: '2024-06-15',
-        subjects: [
-          { name: 'Mathematics', marks: 85, total: 100, grade: 'A' },
-          { name: 'Science', marks: 90, total: 100, grade: 'A+' },
-          { name: 'English', marks: 78, total: 100, grade: 'B+' },
-          { name: 'Social Studies', marks: 88, total: 100, grade: 'A' },
-          { name: 'Hindi', marks: 82, total: 100, grade: 'A' }
-        ],
-        totalMarks: 423,
-        percentage: 84.6,
-        overallGrade: 'A'
-      },
-      {
-        id: 2,
-        examType: 'Unit Test 2',
-        examDate: '2024-09-20',
-        subjects: [
-          { name: 'Mathematics', marks: 88, total: 100, grade: 'A' },
-          { name: 'Science', marks: 92, total: 100, grade: 'A+' },
-          { name: 'English', marks: 85, total: 100, grade: 'A' },
-          { name: 'Social Studies', marks: 90, total: 100, grade: 'A+' },
-          { name: 'Hindi', marks: 80, total: 100, grade: 'A' }
-        ],
-        totalMarks: 435,
-        percentage: 87.0,
-        overallGrade: 'A+'
+    const fetchStudents = async () => {
+      try {
+        // setLoading(true);
+        setError(null);
+        
+        const result = await StudentApi.getAllStudents();
+        
+        if (result.success) {
+          // Important: backend returns studentId, frontend was using .id
+          // Map to keep compatibility with your current components
+          const normalized = result.students.map(stu => ({
+            ...stu,
+            id: stu.studentId,           // ← make .id = studentId for existing components
+          }));
+          setStudents(normalized);
+          setFilteredStudents(normalized);
+        } else {
+          setError(result.error || 'Failed to load students');
+        }
+      } catch (err) {
+        console.error('Dashboard fetch error:', err);
+        setError(err.message || 'Network error while loading students');
+      } finally {
+        setLoading(false);
       }
-    ],
-    subjects: ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi'],
-    examTypes: ['Unit Test 1', 'Unit Test 2', 'Half Yearly', 'Quarterly', 'Final Exam', 'Pre-Board'],
-    gradingScale: [
-      { min: 90, grade: 'A+' },
-      { min: 80, grade: 'A' },
-      { min: 70, grade: 'B+' },
-      { min: 60, grade: 'B' },
-      { min: 50, grade: 'C' },
-      { min: 40, grade: 'D' },
-      { min: 0, grade: 'F' }
-    ],
-    maxMarks: 100,
-    totalMarks: 858,
-    averagePercentage: 85.8,
-    overallGrade: 'A'
-  },
-  totalPaid: 30000,
-  pendingAmount: 6000,
-  status: 'active',
-  createdAt: '2024-04-01T10:30:00Z',
-  updatedAt: '2024-10-01T15:45:00Z'
-},
-      
-    ];
-    setStudents(sampleStudents);
-    setFilteredStudents(sampleStudents);
+    };
+
+    fetchStudents();
   }, []);
 
-  const handleAddStudent = (newStudent) => {
-    const updatedStudents = [...students, newStudent];
-    setStudents(updatedStudents);
-    setFilteredStudents(updatedStudents);
-    setActiveTab('allStudents');
+ const handleAddStudent = async (newStudentData) => {
+    try {
+      const result = await StudentApi.createStudent(newStudentData);
+      
+      if (result.success) {
+        // Add the newly created student to local state
+        const newStudentWithId = {
+          ...result.student,
+          id: result.studentId,
+        };
+        setStudents(prev => [...prev, newStudentWithId]);
+        setFilteredStudents(prev => [...prev, newStudentWithId]);
+        setActiveTab('allStudents');
+      } else {
+        alert('Failed to add student: ' + (result.error || 'Unknown error'));
+      }
+    } catch (err) {
+      console.error('Add student failed:', err);
+      alert('Error adding student');
+    }
   };
 
-  const handleDeleteStudent = (studentId) => {
-    if (window.confirm('Are you sure you want to delete this student?')) {
-      const updatedStudents = students.filter(s => s.id !== studentId);
-      setStudents(updatedStudents);
-      setFilteredStudents(updatedStudents);
-      if (selectedStudent?.id === studentId) {
-        setSelectedStudent(null);
+ const handleDeleteStudent = async (studentId) => {
+    if (!window.confirm('Are you sure you want to delete this student?')) return;
+
+    try {
+      const result = await StudentApi.deleteStudent(studentId);
+      if (result.success) {
+        setStudents(prev => prev.filter(s => s.studentId !== studentId));
+        setFilteredStudents(prev => prev.filter(s => s.studentId !== studentId));
+        if (selectedStudent?.studentId === studentId) {
+          setSelectedStudent(null);
+        }
+      } else {
+        alert('Delete failed: ' + (result.error || 'Unknown error'));
       }
+    } catch (err) {
+      console.error('Delete error:', err);
+      alert('Error deleting student');
     }
   };
 
