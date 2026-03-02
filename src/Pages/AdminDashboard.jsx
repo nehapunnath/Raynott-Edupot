@@ -722,9 +722,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                   </h4>
                   <ul className="text-sm text-amber-700 space-y-1">
                     <li>• This password is shown only once</li>
-                    {/* <li>• Share these credentials securely</li> */}
                     <li>• Keep and share this information confidential and securely</li>
-                    {/* <li>• If password is lost → use Reset Password button</li> */}
                   </ul>
                 </div>
 

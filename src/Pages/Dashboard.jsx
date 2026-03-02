@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { LogOut, Users, UserPlus, List, BarChart3, Search } from 'lucide-react';
 import StudentList from '../Components/StudentList';
 import AllStudents from '../Components/AllStudents'; 
-import StudentDetails from '../Components/StudentDetails';
+// import StudentDetails from '../Components/StudentDetails';
 import AddStudent from '../Components/AddStudents';
 import StudentApi from '../service/StudentApi';
 
@@ -39,9 +39,10 @@ const Dashboard = ({ user, onLogout }) => {
       } catch (err) {
         console.error('Dashboard fetch error:', err);
         setError(err.message || 'Network error while loading students');
-      } finally {
-        setLoading(false);
-      }
+      } 
+      // finally {
+      //   setLoading(false);
+      // }
     };
 
     fetchStudents();
@@ -195,18 +196,19 @@ const Dashboard = ({ user, onLogout }) => {
             students={students}
             onViewDetails={setSelectedStudent}
             onDelete={handleDeleteStudent}
+            onUpdateStudent={handleUpdateStudent}
           />
         )}
       </div>
 
       {/* Student Details Modal */}
-      {selectedStudent && (
+      {/* {selectedStudent && (
         <StudentDetails
           student={selectedStudent}
           onClose={() => setSelectedStudent(null)}
           onUpdateStudent={handleUpdateStudent}
         />
-      )}
+      )} */}
     </div>
   );
 };

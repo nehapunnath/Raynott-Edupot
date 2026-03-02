@@ -1,63 +1,72 @@
-// src/components/dashboard/StudentCard.jsx
-import React, { useState } from 'react';
-import { Eye, Trash2, Download, User, Phone, Mail, Calendar, MapPin, Droplet, Hash, FileDigit, X, Edit2, Save, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { 
+  Eye, Trash2, Download, User, Phone, Mail, Calendar, MapPin, Droplet, 
+  Hash, FileDigit, X, Edit2, Save, AlertCircle, Loader2, Users
+} from 'lucide-react';
 import FeesInstallment from './FeesInstallment';
 import Marks from './Marks';
+import StudentInfo from './StudentInfo';
+import StudentApi from '../service/StudentApi';
 
 const StudentCard = ({ student, onDelete, onUpdateStudent }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [editedStudent, setEditedStudent] = useState(student);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Calculate fee summary
+  // Sync editedStudent when original student changes (but not during editing)
+  useEffect(() => {
+    if (!isEditing) {
+      setEditedStudent(student);
+    }
+  }, [student, isEditing]);
+
   const totalFees = student.feeStructure?.total || 0;
   const paidAmount = student.totalPaid || 0;
   const pendingAmount = student.pendingAmount || 0;
   const progress = totalFees > 0 ? Math.round((paidAmount / totalFees) * 100) : 0;
 
+  // ────────────────────────────────────────────────
+  // Download Handlers
+  // ────────────────────────────────────────────────
   const handleDownloadJSON = () => {
     const studentData = {
       student: {
         basicInfo: student.basicInfo,
-        feeSummary: {
-          totalFees,
-          paidAmount,
-          pendingAmount,
-          progress: `${progress}%`
-        },
+        feeSummary: { totalFees, paidAmount, pendingAmount, progress: `${progress}%` },
         installments: student.installments || [],
         marks: student.marks || [],
         timestamp: new Date().toISOString()
       }
     };
     const jsonString = JSON.stringify(studentData, null, 2);
-    downloadFile(jsonString, 'application/json', `student_${student.basicInfo.admissionNo}.json`);
+    downloadFile(jsonString, 'application/json', `student_${student.basicInfo.admissionNo || 'unknown'}.json`);
     setShowDownloadOptions(false);
   };
 
   const handleDownloadText = () => {
     const marksText = student.marks?.map(mark =>
-      `${mark.examName} (${mark.subject}): ${mark.marksObtained}/${mark.totalMarks}`
+      `${mark.examName || 'Exam'} (${mark.subject || 'Subject'}): ${mark.marksObtained || 0}/${mark.totalMarks || 0}`
     ).join('\n') || 'No marks available';
 
     const textContent = `
 STUDENT INFORMATION
 ====================
-Name: ${student.basicInfo.name}
-Date of Birth: ${student.basicInfo.dob}
-Grade: ${student.basicInfo.grade}
-Section: ${student.basicInfo.section}
-Admission No: ${student.basicInfo.admissionNo}
+Name: ${student.basicInfo.name || 'N/A'}
+Date of Birth: ${student.basicInfo.dob || 'N/A'}
+Grade: ${student.basicInfo.grade || 'N/A'}
+Section: ${student.basicInfo.section || 'N/A'}
+Admission No: ${student.basicInfo.admissionNo || 'N/A'}
 Blood Group: ${student.basicInfo.bloodGroup || 'Not specified'}
 
 PARENT INFORMATION
 ==================
-Father: ${student.basicInfo.fatherName} (${student.basicInfo.fatherPhone})
-Mother: ${student.basicInfo.motherName} (${student.basicInfo.motherPhone})
-Address: ${student.basicInfo.address}, ${student.basicInfo.city}
+Father: ${student.basicInfo.fatherName || 'N/A'} (${student.basicInfo.fatherPhone || 'N/A'})
+Mother: ${student.basicInfo.motherName || 'N/A'} (${student.basicInfo.motherPhone || 'N/A'})
+Address: ${student.basicInfo.address || 'N/A'}, ${student.basicInfo.city || 'N/A'}
 
 FEE SUMMARY
 ============
@@ -72,27 +81,28 @@ ${marksText}
 
 Generated on: ${new Date().toLocaleString()}
     `.trim();
-    downloadFile(textContent, 'text/plain', `student_${student.basicInfo.admissionNo}.txt`);
+    downloadFile(textContent, 'text/plain', `student_${student.basicInfo.admissionNo || 'unknown'}.txt`);
     setShowDownloadOptions(false);
   };
 
   const handleDownloadCSV = () => {
     const csvContent = [
       ['Field', 'Value'],
-      ['Student Name', student.basicInfo.name],
-      ['Grade', student.basicInfo.grade],
-      ['Section', student.basicInfo.section],
-      ['Admission No', student.basicInfo.admissionNo],
-      ['Father Name', student.basicInfo.fatherName],
-      ['Father Phone', student.basicInfo.fatherPhone],
-      ['Mother Name', student.basicInfo.motherName],
-      ['Mother Phone', student.basicInfo.motherPhone],
+      ['Student Name', student.basicInfo.name || ''],
+      ['Grade', student.basicInfo.grade || ''],
+      ['Section', student.basicInfo.section || ''],
+      ['Admission No', student.basicInfo.admissionNo || ''],
+      ['Father Name', student.basicInfo.fatherName || ''],
+      ['Father Phone', student.basicInfo.fatherPhone || ''],
+      ['Mother Name', student.basicInfo.motherName || ''],
+      ['Mother Phone', student.basicInfo.motherPhone || ''],
       ['Total Fees', totalFees],
       ['Paid Amount', paidAmount],
       ['Pending Amount', pendingAmount],
       ['Progress', `${progress}%`],
     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
-    downloadFile(csvContent, 'text/csv', `student_${student.basicInfo.admissionNo}.csv`);
+
+    downloadFile(csvContent, 'text/csv', `student_${student.basicInfo.admissionNo || 'unknown'}.csv`);
     setShowDownloadOptions(false);
   };
 
@@ -108,191 +118,204 @@ Generated on: ${new Date().toLocaleString()}
     URL.revokeObjectURL(url);
   };
 
-  const handleViewDetails = () => {
-    setShowDetails(true);
-    setEditedStudent(student); // Reset edited student when opening
-    setIsEditing(false);
-    setActiveTab('info'); // Always start with info tab
-  };
+  // ────────────────────────────────────────────────
+  // Edit & Save Logic
+  // ────────────────────────────────────────────────
 
-  const handleCloseDetails = () => {
-    setShowDetails(false);
-    setActiveTab('info');
-    setIsEditing(false);
+  const handleChange = useCallback((field, value) => {
+    setEditedStudent(prev => ({
+      ...prev,
+      basicInfo: {
+        ...prev.basicInfo || {},
+        [field]: value
+      }
+    }));
+  }, []);
+
+  const handleSaveChanges = async () => {
+    if (!editedStudent?.basicInfo?.admissionNo?.trim()) {
+      alert("Admission number is required.");
+      return;
+    }
+    if (!editedStudent.basicInfo.name?.trim()) {
+      alert("Student name is required.");
+      return;
+    }
+
+    setIsSaving(true);
+
+    try {
+      const updates = {
+        basicInfo: {
+          ...editedStudent.basicInfo,
+          dob: editedStudent.basicInfo.dob || null,
+          admissionDate: editedStudent.basicInfo.admissionDate || null,
+        }
+      };
+
+      const result = await StudentApi.updateStudent(student.studentId, updates);
+
+      if (result.success) {
+        const updatedStudent = {
+          ...student,
+          basicInfo: {
+            ...student.basicInfo,
+            ...updates.basicInfo
+          }
+        };
+
+        if (typeof onUpdateStudent === 'function') {
+          onUpdateStudent(updatedStudent);
+        }
+
+        setEditedStudent(updatedStudent);
+        
+        // Turn off editing first
+        setIsEditing(false);
+        
+        // Then ensure we stay on info tab (micro-delay helps React batch correctly)
+        setTimeout(() => {
+          setActiveTab('info');
+        }, 0);
+
+        setShowSuccessMessage(true);
+        setTimeout(() => setShowSuccessMessage(false), 4000);
+      } else {
+        alert(result.error || result.message || "Failed to update student");
+      }
+    } catch (err) {
+      console.error("Save student failed:", err);
+      alert(`Error: ${err.message || "Could not save changes"}`);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const handleEditToggle = () => {
     if (isEditing) {
-      // If we're canceling edit, reset to original student data
       setEditedStudent(student);
     }
     setIsEditing(!isEditing);
   };
 
-  const handleInputChange = (section, field, value) => {
-    setEditedStudent(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
-  };
-
-  const handleParentInputChange = (parent, field, value) => {
-    const fieldName = parent === 'father' ? `father${field}` : `mother${field}`;
-    setEditedStudent(prev => ({
-      ...prev,
-      basicInfo: {
-        ...prev.basicInfo,
-        [fieldName]: value
-      }
-    }));
-  };
-
-  const handleSaveChanges = () => {
-    onUpdateStudent(editedStudent);
+  const handleCancel = () => {
+    setEditedStudent(student);
     setIsEditing(false);
-    setShowSuccessMessage(true);
-    setTimeout(() => setShowSuccessMessage(false), 3000);
+  };
+
+  const handleViewDetails = () => {
+    setShowDetails(true);
+    setEditedStudent(student);
+    setIsEditing(false);
+    setActiveTab('info');
+  };
+
+  const handleCloseDetails = () => {
+    setShowDetails(false);
+    setIsEditing(false);
+    setActiveTab('info');
+    setShowSuccessMessage(false);
   };
 
   const handleTabChange = (tab) => {
     setActiveTab(tab);
-    // Turn off editing mode when switching tabs
     if (isEditing) {
       setIsEditing(false);
       setEditedStudent(student);
     }
   };
 
-  // Form field component for editing
-  const EditableField = ({ label, value, onChange, type = 'text', className = '' }) => (
-    <div className={className}>
-      <p className="text-xs text-gray-500">{label}</p>
-      {isEditing ? (
-        <input
-          type={type}
-          value={value || ''}
-          onChange={(e) => onChange(e.target.value)}
-          className="w-full px-2 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-2 focus:ring-amber-500"
-        />
-      ) : (
-        <p className="font-medium">{value || 'N/A'}</p>
-      )}
-    </div>
-  );
-
   return (
     <>
       {/* Compact List Item */}
-      <div className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-shadow">
+      <div className="bg-white border border-gray-200 rounded-lg hover:shadow-md transition-all duration-200">
         <div className="p-4 flex items-center justify-between">
-          {/* Student Info - Compact */}
           <div className="flex items-center space-x-4 flex-1">
-            {/* Avatar with initial */}
-            <div className="w-10 h-10 bg-gradient-to-r from-amber-600 to-amber-700 rounded-full flex items-center justify-center flex-shrink-0">
-              <span className="text-white font-bold text-sm">
-                {student.basicInfo.name.charAt(0)}
+            <div className="w-10 h-10 bg-gradient-to-br from-amber-600 to-amber-800 rounded-full flex items-center justify-center flex-shrink-0">
+              <span className="text-white font-bold text-lg">
+                {student.basicInfo?.name?.charAt(0) || '?'}
               </span>
             </div>
 
-            {/* Basic Details */}
-            <div className="flex-1">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3">
-                <h3 className="font-semibold text-gray-800">{student.basicInfo.name}</h3>
+                <h3 className="font-semibold text-gray-900 truncate">
+                  {student.basicInfo.name || 'Unnamed'}
+                </h3>
                 {student.basicInfo.bloodGroup && (
-                  <span className="text-xs px-2 py-0.5 bg-red-100 text-red-800 rounded-full flex items-center">
-                    <Droplet size={10} className="mr-1" />
+                  <span className="text-xs px-2 py-0.5 bg-red-50 text-red-700 rounded-full flex items-center">
+                    <Droplet size={12} className="mr-1" />
                     {student.basicInfo.bloodGroup}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center space-x-4 text-sm text-gray-600 mt-1">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 mt-1">
                 <span className="flex items-center">
-                  <Hash size={12} className="mr-1" />
-                  {student.basicInfo.admissionNo}
+                  <Hash size={14} className="mr-1" />
+                  {student.basicInfo.admissionNo || '—'}
                 </span>
                 <span className="flex items-center">
-                  <User size={12} className="mr-1" />
-                  Grade {student.basicInfo.grade}-{student.basicInfo.section}
+                  <User size={14} className="mr-1" />
+                  {student.basicInfo.grade ? `Grade ${student.basicInfo.grade}` : '—'}
+                  {student.basicInfo.section ? ` - ${student.basicInfo.section}` : ''}
                 </span>
                 <span className="flex items-center">
-                  <Phone size={12} className="mr-1" />
-                  {student.basicInfo.fatherPhone}
+                  <Phone size={14} className="mr-1" />
+                  {student.basicInfo.fatherPhone || '—'}
                 </span>
               </div>
             </div>
 
-            {/* Fee Progress Bar - Compact */}
-            <div className="w-48">
-              <div className="flex justify-between text-xs mb-1">
-                <span className="text-gray-600">Fee Progress</span>
-                <span className="font-medium text-amber-600">{progress}%</span>
+            <div className="hidden sm:block w-44">
+              <div className="flex justify-between text-xs text-gray-600 mb-1">
+                <span>Fee Progress</span>
+                <span className="font-medium text-amber-700">{progress}%</span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-1.5">
+              <div className="w-full bg-gray-200 rounded-full h-1.5 overflow-hidden">
                 <div
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 h-1.5 rounded-full"
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 h-full transition-all duration-500"
                   style={{ width: `${progress}%` }}
-                ></div>
+                />
               </div>
             </div>
           </div>
 
-          {/* Action Buttons */}
-          <div className="flex items-center space-x-2 ml-4">
-            {/* Download Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowDownloadOptions(!showDownloadOptions)}
-                className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
-                title="Download"
-              >
-                <Download size={18} />
-              </button>
+          <div className="flex items-center space-x-1.5">
+            <button
+              onClick={() => setShowDownloadOptions(prev => !prev)}
+              className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
+              title="Download"
+            >
+              <Download size={18} />
+            </button>
 
-              {showDownloadOptions && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-200 z-10">
-                  <div className="py-1">
-                    <button
-                      onClick={handleDownloadJSON}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <FileDigit size={14} />
-                      <span>JSON</span>
-                    </button>
-                    <button
-                      onClick={handleDownloadText}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <FileDigit size={14} />
-                      <span>Text</span>
-                    </button>
-                    <button
-                      onClick={handleDownloadCSV}
-                      className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
-                    >
-                      <Hash size={14} />
-                      <span>CSV</span>
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
+            {showDownloadOptions && (
+              <div className="absolute right-4 mt-10 w-52 bg-white rounded-lg shadow-xl border border-gray-200 z-20 py-1 text-sm">
+                <button onClick={handleDownloadJSON} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
+                  <FileDigit size={16} /> JSON
+                </button>
+                <button onClick={handleDownloadText} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
+                  <FileDigit size={16} /> Text
+                </button>
+                <button onClick={handleDownloadCSV} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
+                  <Hash size={16} /> CSV
+                </button>
+              </div>
+            )}
 
             <button
               onClick={handleViewDetails}
-              className="p-2 text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-              title="View Details"
+              className="p-2 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+              title="View details"
             >
               <Eye size={18} />
             </button>
 
             <button
-              onClick={() => onDelete(student.basicInfo.admissionNo)}
-              className="p-2 text-gray-600 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-              title="Delete"
+              onClick={() => onDelete?.(student.basicInfo?.admissionNo)}
+              className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+              title="Delete student"
             >
               <Trash2 size={18} />
             </button>
@@ -300,283 +323,75 @@ Generated on: ${new Date().toLocaleString()}
         </div>
       </div>
 
-      {/* Student Details Modal */}
+      {/* ──────────────────────────────────────────────── */}
+      {/* Details Modal */}
+      {/* ──────────────────────────────────────────────── */}
       {showDetails && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 overflow-y-auto">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[90vh] overflow-y-auto">
-            <div className="p-6">
-              {/* Modal Header with Edit Button - Only visible in Info tab */}
-              <div className="flex justify-between items-center mb-6">
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto">
+            <div className="p-6 md:p-8">
+              {/* Header */}
+              <div className="flex justify-between items-start mb-6 sticky top-0 bg-white z-10 pb-2 border-b">
                 <div>
-                  <h2 className="text-2xl font-bold text-gray-800">
-                    {isEditing ? 'Edit Student Information' : student.basicInfo.name}
+                  <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
+                    {isEditing ? 'Edit Student Information' : (student.basicInfo.name || 'Student Details')}
                   </h2>
-                  <p className="text-gray-600">
-                    Admission No: {student.basicInfo.admissionNo} • Grade {student.basicInfo.grade}-{student.basicInfo.section}
+                  <p className="text-gray-600 mt-1">
+                    Adm. No: {student.basicInfo.admissionNo || '—'} • 
+                    {student.basicInfo.grade ? ` Grade ${student.basicInfo.grade}` : ''} 
+                    {student.basicInfo.section ? ` - ${student.basicInfo.section}` : ''}
                   </p>
                 </div>
-                <div className="flex items-center space-x-2">
-                  {/* Show edit buttons only in Info tab */}
-
-                  <button
-                    onClick={handleCloseDetails}
-                    className="text-gray-400 hover:text-gray-600"
-                  >
-                    <X size={24} />
-                  </button>
-                </div>
+                <button
+                  onClick={handleCloseDetails}
+                  className="text-gray-400 hover:text-gray-700 p-1 rounded-full hover:bg-gray-100 transition-colors"
+                >
+                  <X size={28} />
+                </button>
               </div>
 
-              {/* Success Message */}
-              {showSuccessMessage && (
-                <div className="mb-4 p-3 bg-green-100 border border-green-400 text-green-700 rounded-lg flex items-center">
-                  <AlertCircle size={18} className="mr-2" />
-                  Student information updated successfully!
-                </div>
-              )}
-
               {/* Tabs */}
-              <div className="border-b border-gray-200 mb-6">
-                <nav className="flex space-x-8">
-                  <button
-                    onClick={() => handleTabChange('info')}
-                    className={`px-4 py-3 font-medium text-sm transition-all relative ${activeTab === 'info'
-                        ? 'text-amber-600 border-b-2 border-amber-600'
-                        : 'text-gray-500 hover:text-gray-700'
+              <div className="border-b border-gray-200 mb-8">
+                <nav className="flex space-x-16 md:space-x-24">
+                  {['info', 'fees', 'marks'].map(tab => (
+                    <button
+                      key={tab}
+                      onClick={() => handleTabChange(tab)}
+                      className={`pb-4 px-2 font-medium text-base transition-all relative ${
+                        activeTab === tab
+                          ? 'text-amber-700 border-b-3 border-amber-600 font-semibold'
+                          : 'text-gray-600 hover:text-gray-800 hover:border-b-2 hover:border-gray-400'
                       }`}
-                  >
-                    Student Information
-                  </button>
-                  <button
-                    onClick={() => handleTabChange('fees')}
-                    className={`px-4 py-3 font-medium text-sm transition-all relative ${activeTab === 'fees'
-                        ? 'text-amber-600 border-b-2 border-amber-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    Fee Details
-                  </button>
-                  <button
-                    onClick={() => handleTabChange('marks')}
-                    className={`px-4 py-3 font-medium text-sm transition-all relative ${activeTab === 'marks'
-                        ? 'text-amber-600 border-b-2 border-amber-600'
-                        : 'text-gray-500 hover:text-gray-700'
-                      }`}
-                  >
-                    Academic Marks
-                  </button>
+                    >
+                      {tab === 'info' ? 'Student Information' :
+                       tab === 'fees' ? 'Fee Details' : 'Academic Marks'}
+                    </button>
+                  ))}
                 </nav>
               </div>
 
               {/* Tab Content */}
-              {/* Tab Content */}
               <div className="mt-6">
                 {activeTab === 'info' && (
-                  <div className="space-y-6">
-                    {/* Edit buttons at the top of Info tab */}
-                    <div className="flex justify-end space-x-2 mb-2">
-                      {isEditing ? (
-                        <>
-                          <button
-                            onClick={handleEditToggle}
-                            className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 flex items-center space-x-2"
-                          >
-                            <X size={18} />
-                            <span>Cancel</span>
-                          </button>
-                          <button
-                            onClick={handleSaveChanges}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center space-x-2"
-                          >
-                            <Save size={18} />
-                            <span>Save Changes</span>
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          onClick={handleEditToggle}
-                          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2"
-                        >
-                          <Edit2 size={18} />
-                          <span>Edit Information</span>
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Personal Information */}
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                        <User size={16} className="mr-2" />
-                        Personal Information
-                      </h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <EditableField
-                          label="Date of Birth"
-                          value={editedStudent.basicInfo.dob}
-                          onChange={(value) => handleInputChange('basicInfo', 'dob', value)}
-                          type="date"
-                        />
-                        <EditableField
-                          label="Blood Group"
-                          value={editedStudent.basicInfo.bloodGroup}
-                          onChange={(value) => handleInputChange('basicInfo', 'bloodGroup', value)}
-                        />
-                        <EditableField
-                          label="Student Aadhar"
-                          value={editedStudent.basicInfo.studentAadhar}
-                          onChange={(value) => handleInputChange('basicInfo', 'studentAadhar', value)}
-                        />
-                        <EditableField
-                          label="Admission Date"
-                          value={editedStudent.basicInfo.admissionDate}
-                          onChange={(value) => handleInputChange('basicInfo', 'admissionDate', value)}
-                          type="date"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Parent Information */}
-                    <div className="bg-blue-50 rounded-xl p-4">
-                      <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                        <User size={16} className="mr-2" />
-                        Parent Information
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        {/* Father's Details */}
-                        <div className="space-y-2">
-                          <p className="font-medium text-gray-700">Father's Details</p>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <EditableField
-                              label="Name"
-                              value={editedStudent.basicInfo.fatherName}
-                              onChange={(value) => handleParentInputChange('father', 'Name', value)}
-                            />
-                            <EditableField
-                              label="Aadhar"
-                              value={editedStudent.basicInfo.fatherAadhar}
-                              onChange={(value) => handleParentInputChange('father', 'Aadhar', value)}
-                            />
-                            <EditableField
-                              label="Phone"
-                              value={editedStudent.basicInfo.fatherPhone}
-                              onChange={(value) => handleParentInputChange('father', 'Phone', value)}
-                            />
-                            <EditableField
-                              label="Email"
-                              value={editedStudent.basicInfo.fatherEmail}
-                              onChange={(value) => handleParentInputChange('father', 'Email', value)}
-                              type="email"
-                            />
-                            <EditableField
-                              label="Occupation"
-                              value={editedStudent.basicInfo.fatherOccupation}
-                              onChange={(value) => handleParentInputChange('father', 'Occupation', value)}
-                            />
-                          </div>
-                        </div>
-
-                        {/* Mother's Details */}
-                        <div className="space-y-2">
-                          <p className="font-medium text-gray-700">Mother's Details</p>
-                          <div className="grid grid-cols-2 gap-3 text-sm">
-                            <EditableField
-                              label="Name"
-                              value={editedStudent.basicInfo.motherName}
-                              onChange={(value) => handleParentInputChange('mother', 'Name', value)}
-                            />
-                            <EditableField
-                              label="Aadhar"
-                              value={editedStudent.basicInfo.motherAadhar}
-                              onChange={(value) => handleParentInputChange('mother', 'Aadhar', value)}
-                            />
-                            <EditableField
-                              label="Phone"
-                              value={editedStudent.basicInfo.motherPhone}
-                              onChange={(value) => handleParentInputChange('mother', 'Phone', value)}
-                            />
-                            <EditableField
-                              label="Email"
-                              value={editedStudent.basicInfo.motherEmail}
-                              onChange={(value) => handleParentInputChange('mother', 'Email', value)}
-                              type="email"
-                            />
-                            <EditableField
-                              label="Occupation"
-                              value={editedStudent.basicInfo.motherOccupation}
-                              onChange={(value) => handleParentInputChange('mother', 'Occupation', value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Address & Emergency Contact */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="bg-green-50 rounded-xl p-4">
-                        <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                          <MapPin size={16} className="mr-2" />
-                          Address
-                        </h3>
-                        <div className="space-y-3">
-                          <EditableField
-                            label="Address"
-                            value={editedStudent.basicInfo.address}
-                            onChange={(value) => handleInputChange('basicInfo', 'address', value)}
-                          />
-                          <div className="grid grid-cols-3 gap-2">
-                            <EditableField
-                              label="City"
-                              value={editedStudent.basicInfo.city}
-                              onChange={(value) => handleInputChange('basicInfo', 'city', value)}
-                            />
-                            <EditableField
-                              label="State"
-                              value={editedStudent.basicInfo.state}
-                              onChange={(value) => handleInputChange('basicInfo', 'state', value)}
-                            />
-                            <EditableField
-                              label="Pincode"
-                              value={editedStudent.basicInfo.pincode}
-                              onChange={(value) => handleInputChange('basicInfo', 'pincode', value)}
-                            />
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="bg-red-50 rounded-xl p-4">
-                        <h3 className="font-semibold text-gray-800 mb-3 flex items-center">
-                          <Phone size={16} className="mr-2" />
-                          Emergency Contact
-                        </h3>
-                        <div className="space-y-3">
-                          <EditableField
-                            label="Contact Name"
-                            value={editedStudent.basicInfo.emergencyContact}
-                            onChange={(value) => handleInputChange('basicInfo', 'emergencyContact', value)}
-                          />
-                          <EditableField
-                            label="Emergency Phone"
-                            value={editedStudent.basicInfo.emergencyPhone}
-                            onChange={(value) => handleInputChange('basicInfo', 'emergencyPhone', value)}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                  <StudentInfo
+                    student={student}
+                    editedStudent={editedStudent}
+                    isEditing={isEditing}
+                    isSaving={isSaving}
+                    showSuccessMessage={showSuccessMessage}
+                    onEditToggle={handleEditToggle}
+                    onSaveChanges={handleSaveChanges}
+                    onChange={handleChange}
+                    onCancel={handleCancel}
+                  />
                 )}
 
                 {activeTab === 'fees' && (
-                  <FeesInstallment
-                    student={student}
-                    onUpdateStudent={onUpdateStudent}
-                  />
+                  <FeesInstallment student={student} onUpdateStudent={onUpdateStudent} />
                 )}
 
                 {activeTab === 'marks' && (
-                  <Marks
-                    student={student}
-                    onUpdateStudent={onUpdateStudent}
-                  />
+                  <Marks student={student} onUpdateStudent={onUpdateStudent} />
                 )}
               </div>
             </div>

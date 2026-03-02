@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Search, Filter, Download, User, Calendar, BookOpen, Hash, Phone } from 'lucide-react';
 import StudentCard from './StudentCard';
 
-const AllStudents = ({ students, onViewDetails, onDelete }) => {
+const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
@@ -299,6 +299,7 @@ const AllStudents = ({ students, onViewDetails, onDelete }) => {
               student={student}
               onViewDetails={() => onViewDetails(student)}
               onDelete={() => onDelete(student.id)}
+              onUpdateStudent={onUpdateStudent}
             />
           ))
         )}
