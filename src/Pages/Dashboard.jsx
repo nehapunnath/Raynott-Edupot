@@ -91,13 +91,32 @@ const Dashboard = ({ user, onLogout }) => {
   };
 
   const handleUpdateStudent = (updatedStudent) => {
-    const updatedStudents = students.map(student => 
-      student.id === updatedStudent.id ? updatedStudent : student
-    );
-    setStudents(updatedStudents);
-    setFilteredStudents(updatedStudents);
+  console.log("handleUpdateStudent received:", {
+    studentId: updatedStudent.studentId,
+    totalPaid: updatedStudent.totalPaid,
+    pendingAmount: updatedStudent.pendingAmount,
+    installmentsCount: updatedStudent.installments?.length
+  });
+
+  const key = updatedStudent.studentId || updatedStudent.id;
+  console.log("Using key for match:", key);
+
+  const updatedStudents = students.map(student => {
+    const studentKey = student.studentId || student.id;
+    return studentKey === key ? updatedStudent : student;
+  });
+
+  console.log("Updated students length:", updatedStudents.length);
+
+  setStudents(updatedStudents);
+  setFilteredStudents(updatedStudents);
+
+  const selectedKey = selectedStudent?.studentId || selectedStudent?.id;
+  if (selectedKey === key) {
+    console.log("Updating selected student too");
     setSelectedStudent(updatedStudent);
-  };
+  }
+};
 
   // Update the navigation tabs
   return (
