@@ -1,555 +1,739 @@
 import React, { useState } from 'react';
-import { Award, Plus, Trash2, Settings, Edit2, Check, X } from 'lucide-react';
+import { Award, Plus, Trash2, Save, X, Calendar, BookOpen, Edit2, Check } from 'lucide-react';
+import StudentApi from '../service/StudentApi';
+import { toast } from 'react-toastify';
 
 const Marks = ({ student, onUpdateStudent }) => {
-  const [editingConfig, setEditingConfig] = useState(false);
-  const [config, setConfig] = useState({
-    subjects: student.marks?.subjects || ['Mathematics', 'Science', 'English', 'Social Studies', 'Hindi'],
-    examTypes: student.marks?.examTypes || ['Unit Test 1', 'Unit Test 2', 'Half Yearly', 'Quarterly', 'Final Exam', 'Pre-Board'],
-    gradingScale: student.marks?.gradingScale || [
-      { min: 90, grade: 'A+', color: '#059669' },
-      { min: 80, grade: 'A', color: '#2563eb' },
-      { min: 70, grade: 'B+', color: '#d97706' },
-      { min: 60, grade: 'B', color: '#ca8a04' },
-      { min: 50, grade: 'C', color: '#7c3aed' },
-      { min: 40, grade: 'D', color: '#dc2626' },
-      { min: 0, grade: 'F', color: '#991b1b' }
-    ],
-    maxMarks: student.marks?.maxMarks || 100
+  const [loading, setLoading] = useState(false);
+  const [showAddExam, setShowAddExam] = useState(false);
+  const [editingExamId, setEditingExamId] = useState(null);
+  const [editedExam, setEditedExam] = useState(null);
+  const [newExam, setNewExam] = useState({
+    examType: '',
+    examDate: new Date().toISOString().split('T')[0],
+    subjects: [{ name: '', marks: '', total: '', grade: '' }]
   });
 
-  const calculateGrade = (marks, total = config.maxMarks) => {
-    const percentage = (marks / total) * 100;
-    const gradeEntry = config.gradingScale.find(scale => percentage >= scale.min);
-    return gradeEntry ? gradeEntry.grade : 'F';
+  // Calculate grade based on marks and total
+  const calculateGrade = (marks, total) => {
+    if (!marks || !total) return '';
+    const percentage = (parseFloat(marks) / parseFloat(total)) * 100;
+    if (percentage >= 90) return 'A+';
+    if (percentage >= 80) return 'A';
+    if (percentage >= 70) return 'B+';
+    if (percentage >= 60) return 'B';
+    if (percentage >= 50) return 'C';
+    if (percentage >= 40) return 'D';
+    return 'F';
   };
 
-  const getGradeColor = (grade) => {
-    const gradeEntry = config.gradingScale.find(scale => scale.grade === grade);
-    return gradeEntry ? gradeEntry.color : '#dc2626';
+  // Add new subject field to the exam
+  const addSubjectField = (isEditing = false) => {
+    if (isEditing) {
+      setEditedExam({
+        ...editedExam,
+        subjects: [...editedExam.subjects, { name: '', marks: '', total: '', grade: '' }]
+      });
+    } else {
+      setNewExam({
+        ...newExam,
+        subjects: [...newExam.subjects, { name: '', marks: '', total: '', grade: '' }]
+      });
+    }
   };
 
-  const saveConfig = () => {
-    const updatedStudent = {
-      ...student,
-      marks: {
-        ...student.marks,
-        subjects: config.subjects,
-        examTypes: config.examTypes,
-        gradingScale: config.gradingScale,
-        maxMarks: config.maxMarks
+  // Remove subject field
+  const removeSubjectField = (index, isEditing = false) => {
+    if (isEditing) {
+      const updatedSubjects = editedExam.subjects.filter((_, i) => i !== index);
+      setEditedExam({
+        ...editedExam,
+        subjects: updatedSubjects
+      });
+    } else {
+      const updatedSubjects = newExam.subjects.filter((_, i) => i !== index);
+      setNewExam({
+        ...newExam,
+        subjects: updatedSubjects
+      });
+    }
+  };
+
+  // Update subject field
+  const updateSubjectField = (index, field, value, isEditing = false) => {
+    if (isEditing) {
+      const updatedSubjects = [...editedExam.subjects];
+      updatedSubjects[index] = {
+        ...updatedSubjects[index],
+        [field]: value
+      };
+
+      // Auto-calculate grade when marks or total changes
+      if (field === 'marks' || field === 'total') {
+        const marks = field === 'marks' ? value : updatedSubjects[index].marks;
+        const total = field === 'total' ? value : updatedSubjects[index].total;
+        updatedSubjects[index].grade = calculateGrade(marks, total);
       }
-    };
-    onUpdateStudent(updatedStudent);
-    setEditingConfig(false);
-  };
 
-  const addSubject = () => {
-    const newSubject = prompt('Enter new subject name:');
-    if (newSubject && newSubject.trim()) {
-      setConfig({
-        ...config,
-        subjects: [...config.subjects, newSubject.trim()]
+      setEditedExam({
+        ...editedExam,
+        subjects: updatedSubjects
+      });
+    } else {
+      const updatedSubjects = [...newExam.subjects];
+      updatedSubjects[index] = {
+        ...updatedSubjects[index],
+        [field]: value
+      };
+
+      // Auto-calculate grade when marks or total changes
+      if (field === 'marks' || field === 'total') {
+        const marks = field === 'marks' ? value : updatedSubjects[index].marks;
+        const total = field === 'total' ? value : updatedSubjects[index].total;
+        updatedSubjects[index].grade = calculateGrade(marks, total);
+      }
+
+      setNewExam({
+        ...newExam,
+        subjects: updatedSubjects
       });
     }
   };
 
-  const removeSubject = (index) => {
-    const newSubjects = config.subjects.filter((_, i) => i !== index);
-    setConfig({ ...config, subjects: newSubjects });
+  // Reset form
+  const resetForm = () => {
+    setNewExam({
+      examType: '',
+      examDate: new Date().toISOString().split('T')[0],
+      subjects: [{ name: '', marks: '', total: '', grade: '' }]
+    });
+    setShowAddExam(false);
+    setEditingExamId(null);
+    setEditedExam(null);
   };
 
-  const addExamType = () => {
-    const newExamType = prompt('Enter new exam type:');
-    if (newExamType && newExamType.trim()) {
-      setConfig({
-        ...config,
-        examTypes: [...config.examTypes, newExamType.trim()]
-      });
+  // Start editing exam
+  const handleEditExam = (exam) => {
+    setEditingExamId(exam.id);
+    setEditedExam(JSON.parse(JSON.stringify(exam))); // Deep clone
+  };
+
+  // Cancel editing
+  const handleCancelEdit = () => {
+    setEditingExamId(null);
+    setEditedExam(null);
+  };
+
+  // Save edited exam
+  const handleSaveEdit = async () => {
+    if (!editedExam) return;
+
+    // Validate subjects
+    const validSubjects = editedExam.subjects.filter(
+      s => s.name.trim() && s.marks && s.total
+    );
+
+    if (validSubjects.length === 0) {
+      toast.error('Please add at least one subject with marks');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // Prepare subjects with proper numeric values
+      const subjects = validSubjects.map(s => ({
+        name: s.name.trim(),
+        marks: parseFloat(s.marks) || 0,
+        total: parseFloat(s.total) || 0,
+        grade: calculateGrade(s.marks, s.total)
+      }));
+
+      // Calculate exam totals
+      const totalMarks = subjects.reduce((sum, s) => sum + s.marks, 0);
+      const totalPossible = subjects.reduce((sum, s) => sum + s.total, 0);
+      const percentage = totalPossible > 0 ? (totalMarks / totalPossible) * 100 : 0;
+      const overallGrade = calculateGrade(totalMarks, totalPossible);
+
+      const updatedExamData = {
+        ...editedExam,
+        subjects: subjects,
+        totalMarks: totalMarks,
+        percentage: Math.round(percentage * 10) / 10,
+        overallGrade: overallGrade
+      };
+
+      // Update the exams array
+      const updatedExams = student.marks.exams.map(exam => 
+        exam.id === editingExamId ? updatedExamData : exam
+      );
+
+      // Recalculate all exams average
+      const allExamsTotal = updatedExams.reduce((sum, e) => sum + e.totalMarks, 0);
+      const allExamsPossible = updatedExams.reduce((sum, e) => 
+        sum + e.subjects.reduce((subSum, sub) => subSum + sub.total, 0), 0);
+      
+      const averagePercentage = allExamsPossible > 0 
+        ? (allExamsTotal / allExamsPossible) * 100 
+        : 0;
+
+      const updatedStudent = {
+        ...student,
+        marks: {
+          ...student.marks,
+          exams: updatedExams,
+          totalMarks: allExamsTotal,
+          averagePercentage: Math.round(averagePercentage * 10) / 10,
+          overallGrade: calculateGrade(allExamsTotal, allExamsPossible)
+        }
+      };
+
+      // Update via API
+      const result = await StudentApi.updateMarks(student.studentId, updatedStudent.marks);
+      
+      if (result.success) {
+        onUpdateStudent(updatedStudent);
+        toast.success('Exam updated successfully');
+        handleCancelEdit();
+      } else {
+        toast.error(result.error || 'Failed to update exam');
+      }
+    } catch (error) {
+      console.error('Update exam error:', error);
+      toast.error('Failed to update exam');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const removeExamType = (index) => {
-    const newExamTypes = config.examTypes.filter((_, i) => i !== index);
-    setConfig({ ...config, examTypes: newExamTypes });
-  };
-
-  const addGrade = () => {
-    const newGrade = prompt('Enter new grade (e.g., A++):');
-    const minScore = prompt('Enter minimum percentage for this grade:');
-    const color = prompt('Enter color for this grade (hex code):', '#000000');
-    
-    if (newGrade && minScore && color) {
-      setConfig({
-        ...config,
-        gradingScale: [
-          ...config.gradingScale,
-          { min: parseInt(minScore), grade: newGrade, color }
-        ].sort((a, b) => b.min - a.min) // Sort descending
-      });
+  // Add new exam
+  const handleAddExam = async () => {
+    // Validate exam type
+    if (!newExam.examType.trim()) {
+      toast.error('Please enter exam type');
+      return;
     }
-  };
 
-  const removeGrade = (index) => {
-    const newScale = config.gradingScale.filter((_, i) => i !== index);
-    setConfig({ ...config, gradingScale: newScale });
-  };
+    // Validate subjects
+    const validSubjects = newExam.subjects.filter(
+      s => s.name.trim() && s.marks && s.total
+    );
 
-  const addExam = () => {
-    const newExamId = student.marks?.exams?.length || 0;
-    
-    const initialSubjects = config.subjects.map(subject => ({
-      name: subject,
-      marks: 0,
-      total: config.maxMarks,
-      grade: ''
-    }));
+    if (validSubjects.length === 0) {
+      toast.error('Please add at least one subject with marks');
+      return;
+    }
 
-    const updatedStudent = {
-      ...student,
-      marks: {
-        ...student.marks,
-        ...config,
-        exams: [
-          ...(student.marks?.exams || []),
-          {
-            id: Date.now(),
-            examType: config.examTypes[0] || 'Exam 1',
-            examDate: new Date().toISOString().split('T')[0],
-            subjects: initialSubjects,
-            totalMarks: 0,
-            percentage: 0,
-            overallGrade: ''
+    setLoading(true);
+    try {
+      // Prepare subjects with proper numeric values
+      const subjects = validSubjects.map(s => ({
+        name: s.name.trim(),
+        marks: parseFloat(s.marks) || 0,
+        total: parseFloat(s.total) || 0,
+        grade: calculateGrade(s.marks, s.total)
+      }));
+
+      // Calculate exam totals
+      const totalMarks = subjects.reduce((sum, s) => sum + s.marks, 0);
+      const totalPossible = subjects.reduce((sum, s) => sum + s.total, 0);
+      const percentage = totalPossible > 0 ? (totalMarks / totalPossible) * 100 : 0;
+      const overallGrade = calculateGrade(totalMarks, totalPossible);
+
+      const examData = {
+        examType: newExam.examType.trim(),
+        examDate: newExam.examDate,
+        subjects: subjects,
+        totalMarks: totalMarks,
+        percentage: Math.round(percentage * 10) / 10,
+        overallGrade: overallGrade
+      };
+
+      const result = await StudentApi.addExam(student.studentId, examData);
+
+      if (result.success) {
+        // Update local student data
+        const updatedStudent = {
+          ...student,
+          marks: {
+            ...student.marks,
+            exams: [...(student.marks?.exams || []), result.exam]
           }
-        ]
+        };
+        onUpdateStudent(updatedStudent);
+        toast.success('Exam added successfully');
+        resetForm();
+      } else {
+        toast.error(result.error || 'Failed to add exam');
       }
-    };
-
-    onUpdateStudent(updatedStudent);
+    } catch (error) {
+      console.error('Add exam error:', error);
+      toast.error('Failed to add exam');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateExamMarks = (examId, subjectIndex, marks) => {
-    const marksValue = parseInt(marks) || 0;
-    const updatedExams = student.marks.exams.map(exam => {
-      if (exam.id === examId) {
-        const updatedSubjects = [...exam.subjects];
-        updatedSubjects[subjectIndex] = {
-          ...updatedSubjects[subjectIndex],
-          marks: marksValue,
-          grade: calculateGrade(marksValue, updatedSubjects[subjectIndex].total)
+  // Delete exam
+  const handleDeleteExam = async (examId) => {
+    if (!window.confirm('Are you sure you want to delete this exam?')) return;
+
+    setLoading(true);
+    try {
+      const result = await StudentApi.deleteExam(student.studentId, examId);
+
+      if (result.success) {
+        const updatedExams = student.marks.exams.filter(exam => exam.id !== examId);
+        
+        // Recalculate overall marks
+        const allExamsTotal = updatedExams.reduce((sum, exam) => sum + exam.totalMarks, 0);
+        const allExamsPossible = updatedExams.reduce((sum, exam) => 
+          sum + exam.subjects.reduce((subSum, sub) => subSum + sub.total, 0), 0);
+        
+        const averagePercentage = allExamsPossible > 0 
+          ? (allExamsTotal / allExamsPossible) * 100 
+          : 0;
+
+        const updatedStudent = {
+          ...student,
+          marks: {
+            ...student.marks,
+            exams: updatedExams,
+            totalMarks: allExamsTotal,
+            averagePercentage: Math.round(averagePercentage * 10) / 10,
+            overallGrade: calculateGrade(allExamsTotal, allExamsPossible)
+          }
         };
-
-        const totalMarks = updatedSubjects.reduce((sum, sub) => sum + (sub.marks || 0), 0);
-        const totalPossibleMarks = updatedSubjects.reduce((sum, sub) => sum + (sub.total || config.maxMarks), 0);
-        const percentage = totalPossibleMarks > 0 ? (totalMarks / totalPossibleMarks) * 100 : 0;
-        const overallGrade = calculateGrade(totalMarks, totalPossibleMarks);
-
-        return {
-          ...exam,
-          subjects: updatedSubjects,
-          totalMarks,
-          percentage: Math.round(percentage * 10) / 10,
-          overallGrade
-        };
+        
+        onUpdateStudent(updatedStudent);
+        toast.success('Exam deleted successfully');
+      } else {
+        toast.error(result.error || 'Failed to delete exam');
       }
-      return exam;
-    });
-
-    // Update overall marks
-    const allExamsTotal = updatedExams.reduce((sum, exam) => sum + exam.totalMarks, 0);
-    const allExamsPossibleTotal = updatedExams.reduce((sum, exam) => 
-      sum + exam.subjects.reduce((subSum, sub) => subSum + sub.total, 0), 0);
-    
-    const allExamsAverage = allExamsPossibleTotal > 0 
-      ? (allExamsTotal / allExamsPossibleTotal) * 100 
-      : 0;
-
-    const updatedStudent = {
-      ...student,
-      marks: {
-        ...student.marks,
-        ...config,
-        exams: updatedExams,
-        totalMarks: allExamsTotal,
-        averagePercentage: Math.round(allExamsAverage * 10) / 10,
-        overallGrade: calculateGrade(allExamsTotal, allExamsPossibleTotal)
-      }
-    };
-
-    onUpdateStudent(updatedStudent);
-  };
-
-  const deleteExam = (examId) => {
-    const updatedExams = student.marks.exams.filter(exam => exam.id !== examId);
-    
-    // Update overall marks
-    const allExamsTotal = updatedExams.reduce((sum, exam) => sum + exam.totalMarks, 0);
-    const allExamsPossibleTotal = updatedExams.reduce((sum, exam) => 
-      sum + exam.subjects.reduce((subSum, sub) => subSum + sub.total, 0), 0);
-    
-    const allExamsAverage = allExamsPossibleTotal > 0 
-      ? (allExamsTotal / allExamsPossibleTotal) * 100 
-      : 0;
-
-    const updatedStudent = {
-      ...student,
-      marks: {
-        ...student.marks,
-        ...config,
-        exams: updatedExams,
-        totalMarks: allExamsTotal,
-        averagePercentage: Math.round(allExamsAverage * 10) / 10,
-        overallGrade: calculateGrade(allExamsTotal, allExamsPossibleTotal)
-      }
-    };
-
-    onUpdateStudent(updatedStudent);
-  };
-
-  const updateSubjectTotal = (examId, subjectIndex, total) => {
-    const totalValue = parseInt(total) || config.maxMarks;
-    const updatedExams = student.marks.exams.map(exam => {
-      if (exam.id === examId) {
-        const updatedSubjects = [...exam.subjects];
-        const currentMarks = updatedSubjects[subjectIndex].marks;
-        updatedSubjects[subjectIndex] = {
-          ...updatedSubjects[subjectIndex],
-          total: totalValue,
-          grade: calculateGrade(currentMarks, totalValue)
-        };
-
-        // Recalculate exam totals
-        const totalMarks = updatedSubjects.reduce((sum, sub) => sum + sub.marks, 0);
-        const totalPossibleMarks = updatedSubjects.reduce((sum, sub) => sum + sub.total, 0);
-        const percentage = totalPossibleMarks > 0 ? (totalMarks / totalPossibleMarks) * 100 : 0;
-        const overallGrade = calculateGrade(totalMarks, totalPossibleMarks);
-
-        return {
-          ...exam,
-          subjects: updatedSubjects,
-          totalMarks,
-          percentage: Math.round(percentage * 10) / 10,
-          overallGrade
-        };
-      }
-      return exam;
-    });
-
-    const updatedStudent = {
-      ...student,
-      marks: {
-        ...student.marks,
-        ...config,
-        exams: updatedExams
-      }
-    };
-    onUpdateStudent(updatedStudent);
+    } catch (error) {
+      console.error('Delete exam error:', error);
+      toast.error('Failed to delete exam');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <>
-      <div>
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-semibold text-gray-700">Academic Marks</h3>
-          <div className="flex space-x-2">
-            <button
-              onClick={() => setEditingConfig(!editingConfig)}
-              className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm hover:bg-gray-200 flex items-center space-x-2"
-            >
-              <Settings size={16} />
-              <span>Configure</span>
-            </button>
-            <button
-              onClick={addExam}
-              className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 flex items-center space-x-2"
-            >
-              <Plus size={16} />
-              <span>Add Exam</span>
-            </button>
-          </div>
-        </div>
-
-        {/* Configuration Panel */}
-        {editingConfig && (
-          <div className="mb-6 p-4 bg-white border border-gray-300 rounded-xl shadow-sm">
-            <div className="flex justify-between items-center mb-4">
-              <h4 className="font-semibold text-gray-800">Configuration</h4>
-              <div className="flex space-x-2">
-                <button
-                  onClick={saveConfig}
-                  className="px-3 py-1 bg-green-600 text-white rounded-lg text-sm hover:bg-green-700 flex items-center space-x-1"
-                >
-                  <Check size={16} />
-                  <span>Save</span>
-                </button>
-                <button
-                  onClick={() => {
-                    setConfig({
-                      subjects: student.marks?.subjects || config.subjects,
-                      examTypes: student.marks?.examTypes || config.examTypes,
-                      gradingScale: student.marks?.gradingScale || config.gradingScale,
-                      maxMarks: student.marks?.maxMarks || config.maxMarks
-                    });
-                    setEditingConfig(false);
-                  }}
-                  className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 flex items-center space-x-1"
-                >
-                  <X size={16} />
-                  <span>Cancel</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Subjects Configuration */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-medium text-gray-700">Subjects</label>
-                <button
-                  onClick={addSubject}
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  + Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {config.subjects.map((subject, index) => (
-                  <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center space-x-2">
-                    <span>{subject}</span>
-                    <button
-                      onClick={() => removeSubject(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Exam Types Configuration */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-medium text-gray-700">Exam Types</label>
-                <button
-                  onClick={addExamType}
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  + Add
-                </button>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {config.examTypes.map((type, index) => (
-                  <div key={index} className="px-3 py-1 bg-gray-100 rounded-full text-sm flex items-center space-x-2">
-                    <span>{type}</span>
-                    <button
-                      onClick={() => removeExamType(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ×
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Grading Scale Configuration */}
-            <div className="mb-4">
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-sm font-medium text-gray-700">Grading Scale</label>
-                <button
-                  onClick={addGrade}
-                  className="text-xs px-2 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200"
-                >
-                  + Add
-                </button>
-              </div>
-              <div className="space-y-2">
-                {config.gradingScale.map((grade, index) => (
-                  <div key={index} className="flex items-center space-x-3">
-                    <div className="w-16 text-sm text-gray-600">≥ {grade.min}%</div>
-                    <div 
-                      className="px-3 py-1 rounded text-sm font-medium text-white"
-                      style={{ backgroundColor: grade.color }}
-                    >
-                      {grade.grade}
-                    </div>
-                    <input
-                      type="color"
-                      value={grade.color}
-                      onChange={(e) => {
-                        const newScale = [...config.gradingScale];
-                        newScale[index].color = e.target.value;
-                        setConfig({ ...config, gradingScale: newScale });
-                      }}
-                      className="w-8 h-8 cursor-pointer"
-                    />
-                    <button
-                      onClick={() => removeGrade(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Maximum Marks Configuration */}
-            <div>
-              <label className="text-sm font-medium text-gray-700 mb-2 block">
-                Maximum Marks per Subject
-              </label>
-              <input
-                type="number"
-                value={config.maxMarks}
-                onChange={(e) => setConfig({ ...config, maxMarks: parseInt(e.target.value) || 100 })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                min="1"
-                max="1000"
-              />
-            </div>
-          </div>
-        )}
-
-        {/* Main Content */}
-        {(!student.marks?.exams || student.marks.exams.length === 0) ? (
-          <div className="text-center py-8 bg-gray-50 rounded-lg">
-            <Award className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-            <p className="text-gray-600 mb-2">No exams added yet</p>
-            <p className="text-sm text-gray-500 mb-4">Add exams to track academic performance</p>
-            <button
-              onClick={addExam}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm hover:bg-blue-700"
-            >
-              Add First Exam
-            </button>
-          </div>
-        ) : (
-          <div className="space-y-6">
-            
-            
-            {/* Exams List */}
-            {student.marks.exams.map((exam) => (
-              <div key={exam.id} className="border border-gray-200 rounded-xl p-4 hover:border-blue-300 transition-colors">
-                <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <h4 className="font-bold text-gray-800">{exam.examType}</h4>
-                    <p className="text-sm text-gray-600">Date: {exam.examDate}</p>
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <span 
-                      className="px-3 py-1 rounded-full text-sm font-medium text-white"
-                      style={{ backgroundColor: getGradeColor(exam.overallGrade) }}
-                    >
-                      {exam.overallGrade}
-                    </span>
-                    <button
-                      onClick={() => deleteExam(exam.id)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-                
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600">Total Marks</div>
-                      <div className="font-bold text-gray-800">{exam.totalMarks}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600">Percentage</div>
-                      <div className="font-bold text-green-600">{exam.percentage}%</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-sm text-gray-600">Grade</div>
-                      <div 
-                        className="font-bold"
-                        style={{ color: getGradeColor(exam.overallGrade) }}
-                      >
-                        {exam.overallGrade}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {/* Subjects Table */}
-                <div className="space-y-3">
-                  <div className="grid grid-cols-5 gap-2 text-sm font-medium text-gray-600 mb-2">
-                    <div>Subject</div>
-                    <div className="text-center">Marks</div>
-                    <div className="text-center">Total</div>
-                    <div className="text-center">Percentage</div>
-                    <div className="text-center">Grade</div>
-                  </div>
-                  {exam.subjects.map((subject, subjectIndex) => (
-                    <div key={subjectIndex} className="grid grid-cols-5 gap-2 items-center">
-                      <div className="font-medium text-gray-700">{subject.name}</div>
-                      <div>
-                        <input
-                          type="number"
-                          value={subject.marks}
-                          onChange={(e) => updateExamMarks(exam.id, subjectIndex, e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded text-center"
-                          max={subject.total || config.maxMarks}
-                          min="0"
-                        />
-                      </div>
-                      <div>
-                        <input
-                          type="number"
-                          value={subject.total}
-                          onChange={(e) => updateSubjectTotal(exam.id, subjectIndex, e.target.value)}
-                          className="w-full px-3 py-2 border border-gray-300 rounded text-center"
-                          min="1"
-                          max="1000"
-                        />
-                      </div>
-                      <div className="text-center text-gray-600">
-                        {subject.total > 0 ? Math.round((subject.marks / subject.total) * 100) : 0}%
-                      </div>
-                      <div 
-                        className="text-center font-bold"
-                        style={{ color: getGradeColor(subject.grade) }}
-                      >
-                        {subject.grade}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                
-                {/* Exam Type Selection */}
-                <div className="mt-4">
-                  <label className="block text-sm text-gray-600 mb-1">Exam Type</label>
-                  <select
-                    value={exam.examType}
-                    onChange={(e) => {
-                      const updatedExams = student.marks.exams.map(ex => 
-                        ex.id === exam.id ? { ...ex, examType: e.target.value } : ex
-                      );
-                      const updatedStudent = {
-                        ...student,
-                        marks: { ...student.marks, exams: updatedExams }
-                      };
-                      onUpdateStudent(updatedStudent);
-                    }}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-lg"
-                  >
-                    {config.examTypes.map(type => (
-                      <option key={type} value={type}>{type}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+    <div className="space-y-6">
+      {/* Header with Add Exam Button */}
+      <div className="flex justify-between items-center">
+        <h3 className="text-lg font-semibold text-gray-700">Academic Marks</h3>
+        <button
+          onClick={() => setShowAddExam(true)}
+          className="px-4 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg text-sm hover:from-blue-700 hover:to-blue-800 flex items-center space-x-2"
+        >
+          <Plus size={16} />
+          <span>Add New Exam</span>
+        </button>
       </div>
 
-      {/* Empty column to maintain layout */}
-      <div></div>
-    </>
+      {/* Add Exam Form */}
+      {showAddExam && (
+        <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h4 className="font-semibold text-gray-800">Add New Exam</h4>
+            <button
+              onClick={resetForm}
+              className="text-gray-500 hover:text-gray-700"
+            >
+              <X size={20} />
+            </button>
+          </div>
+
+          <div className="space-y-4">
+            {/* Exam Type and Date */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Exam Type *
+                </label>
+                <input
+                  type="text"
+                  value={newExam.examType}
+                  onChange={(e) => setNewExam({ ...newExam, examType: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  placeholder="e.g., Half Yearly Exam, Final Exam, Unit Test"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Exam Date
+                </label>
+                <input
+                  type="date"
+                  value={newExam.examDate}
+                  onChange={(e) => setNewExam({ ...newExam, examDate: e.target.value })}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+            </div>
+
+            {/* Subjects Section */}
+            <div>
+              <div className="flex justify-between items-center mb-2">
+                <label className="block text-sm font-medium text-gray-700">
+                  Subjects and Marks *
+                </label>
+                <button
+                  onClick={() => addSubjectField(false)}
+                  className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center space-x-1"
+                >
+                  <Plus size={14} />
+                  <span>Add Subject</span>
+                </button>
+              </div>
+
+              {/* Subject Headers */}
+              <div className="grid grid-cols-12 gap-3 mb-2 text-xs font-medium text-gray-600">
+                <div className="col-span-4">Subject Name</div>
+                <div className="col-span-2">Marks</div>
+                <div className="col-span-2">Total</div>
+                <div className="col-span-2">Grade</div>
+                <div className="col-span-2"></div>
+              </div>
+
+              {/* Subject Fields */}
+              {newExam.subjects.map((subject, index) => (
+                <div key={index} className="grid grid-cols-12 gap-3 mb-3">
+                  <div className="col-span-4">
+                    <input
+                      type="text"
+                      value={subject.name}
+                      onChange={(e) => updateSubjectField(index, 'name', e.target.value, false)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Subject name"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="number"
+                      value={subject.marks}
+                      onChange={(e) => updateSubjectField(index, 'marks', e.target.value, false)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Marks"
+                      min="0"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="number"
+                      value={subject.total}
+                      onChange={(e) => updateSubjectField(index, 'total', e.target.value, false)}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                      placeholder="Total"
+                      min="1"
+                    />
+                  </div>
+                  <div className="col-span-2">
+                    <input
+                      type="text"
+                      value={subject.grade}
+                      className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg"
+                      placeholder="Grade"
+                      readOnly
+                    />
+                  </div>
+                  <div className="col-span-2 flex items-center">
+                    {newExam.subjects.length > 1 && (
+                      <button
+                        onClick={() => removeSubjectField(index, false)}
+                        className="text-red-600 hover:text-red-800"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Form Actions */}
+            <div className="flex justify-end space-x-3 mt-6">
+              <button
+                onClick={resetForm}
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleAddExam}
+                disabled={loading}
+                className="px-6 py-2 bg-gradient-to-r from-blue-600 to-blue-700 text-white rounded-lg hover:from-blue-700 hover:to-blue-800 flex items-center space-x-2 disabled:opacity-50"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                    <span>Saving...</span>
+                  </>
+                ) : (
+                  <>
+                    <Save size={16} />
+                    <span>Save Exam</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Display Existing Exams */}
+      {(!student.marks?.exams || student.marks.exams.length === 0) && !showAddExam ? (
+        <div className="text-center py-12 bg-gray-50 rounded-lg">
+          <Award className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+          <p className="text-gray-600 mb-2">No exams added yet</p>
+          <p className="text-sm text-gray-500 mb-4">Add exams to track academic performance</p>
+          <button
+            onClick={() => setShowAddExam(true)}
+            className="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+          >
+            Add First Exam
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-6">
+          {student.marks?.exams?.map((exam) => (
+            <div key={exam.id} className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+              {/* Exam Header */}
+              <div className="flex justify-between items-start mb-4 pb-4 border-b border-gray-200">
+                <div>
+                  <h4 className="text-lg font-semibold text-gray-800">{exam.examType}</h4>
+                  <div className="flex items-center space-x-4 mt-1 text-sm text-gray-600">
+                    <span className="flex items-center">
+                      <Calendar size={14} className="mr-1" />
+                      {exam.examDate}
+                    </span>
+                    <span className="flex items-center">
+                      <BookOpen size={14} className="mr-1" />
+                      {exam.subjects.length} Subjects
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center space-x-4">
+                  <div className="text-right">
+                    <div className="text-sm text-gray-600">Total Marks</div>
+                    <div className="text-xl font-bold text-blue-600">{exam.totalMarks}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-600">Percentage</div>
+                    <div className="text-lg font-semibold text-green-600">{exam.percentage}%</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-sm text-gray-600">Grade</div>
+                    <div className="text-xl font-bold" style={{ 
+                      color: exam.overallGrade === 'A+' ? '#059669' :
+                             exam.overallGrade === 'A' ? '#2563eb' :
+                             exam.overallGrade === 'B+' ? '#d97706' :
+                             exam.overallGrade === 'B' ? '#ca8a04' :
+                             exam.overallGrade === 'C' ? '#7c3aed' :
+                             exam.overallGrade === 'D' ? '#dc2626' : '#991b1b'
+                    }}>
+                      {exam.overallGrade}
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => handleEditExam(exam)}
+                    className="p-2 text-blue-600 hover:text-blue-800 hover:bg-blue-50 rounded-lg transition-colors"
+                    title="Edit exam"
+                  >
+                    <Edit2 size={18} />
+                  </button>
+                  <button
+                    onClick={() => handleDeleteExam(exam.id)}
+                    className="p-2 text-red-600 hover:text-red-800 hover:bg-red-50 rounded-lg transition-colors"
+                    title="Delete exam"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Edit Mode */}
+              {editingExamId === exam.id && editedExam ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Exam Type *
+                      </label>
+                      <input
+                        type="text"
+                        value={editedExam.examType}
+                        onChange={(e) => setEditedExam({ ...editedExam, examType: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Exam Date
+                      </label>
+                      <input
+                        type="date"
+                        value={editedExam.examDate}
+                        onChange={(e) => setEditedExam({ ...editedExam, examDate: e.target.value })}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Subjects Section for Editing */}
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium text-gray-700">
+                        Subjects and Marks *
+                      </label>
+                      <button
+                        onClick={() => addSubjectField(true)}
+                        className="text-sm px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 flex items-center space-x-1"
+                      >
+                        <Plus size={14} />
+                        <span>Add Subject</span>
+                      </button>
+                    </div>
+
+                    <div className="grid grid-cols-12 gap-3 mb-2 text-xs font-medium text-gray-600">
+                      <div className="col-span-4">Subject Name</div>
+                      <div className="col-span-2">Marks</div>
+                      <div className="col-span-2">Total</div>
+                      <div className="col-span-2">Grade</div>
+                      <div className="col-span-2"></div>
+                    </div>
+
+                    {editedExam.subjects.map((subject, index) => (
+                      <div key={index} className="grid grid-cols-12 gap-3 mb-3">
+                        <div className="col-span-4">
+                          <input
+                            type="text"
+                            value={subject.name}
+                            onChange={(e) => updateSubjectField(index, 'name', e.target.value, true)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="Subject name"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            value={subject.marks}
+                            onChange={(e) => updateSubjectField(index, 'marks', e.target.value, true)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="Marks"
+                            min="0"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="number"
+                            value={subject.total}
+                            onChange={(e) => updateSubjectField(index, 'total', e.target.value, true)}
+                            className="w-full px-3 py-2 border border-gray-300 rounded-lg"
+                            placeholder="Total"
+                            min="1"
+                          />
+                        </div>
+                        <div className="col-span-2">
+                          <input
+                            type="text"
+                            value={subject.grade}
+                            className="w-full px-3 py-2 bg-gray-50 border border-gray-300 rounded-lg"
+                            placeholder="Grade"
+                            readOnly
+                          />
+                        </div>
+                        <div className="col-span-2 flex items-center">
+                          {editedExam.subjects.length > 1 && (
+                            <button
+                              onClick={() => removeSubjectField(index, true)}
+                              className="text-red-600 hover:text-red-800"
+                            >
+                              <Trash2 size={18} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Edit Actions */}
+                  <div className="flex justify-end space-x-3 mt-4">
+                    <button
+                      onClick={handleCancelEdit}
+                      className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={loading}
+                      className="px-6 py-2 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 flex items-center space-x-2 disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <>
+                          <div className="animate-spin h-4 w-4 border-2 border-white border-t-transparent rounded-full" />
+                          <span>Saving...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Check size={16} />
+                          <span>Save Changes</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                /* View Mode - Subjects Table */
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="text-xs text-gray-600 border-b border-gray-200">
+                        <th className="text-left py-2">Subject</th>
+                        <th className="text-center py-2">Marks Obtained</th>
+                        <th className="text-center py-2">Total Marks</th>
+                        <th className="text-center py-2">Percentage</th>
+                        <th className="text-center py-2">Grade</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {exam.subjects.map((subject, idx) => (
+                        <tr key={idx} className="border-b border-gray-100">
+                          <td className="py-3 font-medium text-gray-700">{subject.name}</td>
+                          <td className="py-3 text-center">{subject.marks}</td>
+                          <td className="py-3 text-center">{subject.total}</td>
+                          <td className="py-3 text-center text-gray-600">
+                            {subject.total > 0 
+                              ? Math.round((subject.marks / subject.total) * 100) 
+                              : 0}%
+                          </td>
+                          <td className="py-3 text-center">
+                            <span 
+                              className="px-3 py-1 rounded-full text-sm font-medium text-white"
+                              style={{ 
+                                backgroundColor: subject.grade === 'A+' ? '#059669' :
+                                               subject.grade === 'A' ? '#2563eb' :
+                                               subject.grade === 'B+' ? '#d97706' :
+                                               subject.grade === 'B' ? '#ca8a04' :
+                                               subject.grade === 'C' ? '#7c3aed' :
+                                               subject.grade === 'D' ? '#dc2626' : '#991b1b'
+                              }}
+                            >
+                              {subject.grade}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 };
 

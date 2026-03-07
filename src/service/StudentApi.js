@@ -219,7 +219,90 @@ class StudentApi {
   // ────────────────────────────────────────────────
   // Marks / Academic Configuration
   // ────────────────────────────────────────────────
+/**
+   * Get only the marks object for a student
+   * @param {string} studentId
+   * @returns {Promise<{success: boolean, marks?: object, error?: string}>}
+   */
+  static async getMarks(studentId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/marks`, {
+        method: 'GET',
+        headers,
+      });
 
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to fetch marks');
+      }
+
+      return {
+        success: true,
+        marks: data.marks || null,
+      };
+    } catch (error) {
+      console.error('Get marks error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add a new exam to the student's marks
+   * @param {string} studentId
+   * @param {object} examData - { examType, examDate, subjects: [...], ... }
+   */
+  static async addExam(studentId, examData) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/marks/exams`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(examData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Failed to add exam');
+      }
+
+      return {
+        success: true,
+        exam: data.exam,
+      };
+    } catch (error) {
+      console.error('Add exam error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete an exam by its ID
+   * @param {string} studentId
+   * @param {string} examId
+   */
+  static async deleteExam(studentId, examId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/marks/exams/${examId}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || data.error || 'Failed to delete exam');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Delete exam error:', error);
+      return { success: false, error: error.message };
+    }
+  }
   /**
    * Update full marks object (subjects, examTypes, gradingScale, exams array, totals, etc.)
    * This replaces the entire marks field — matches how Marks.jsx updates

@@ -83,22 +83,15 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
       examTypes: []
     }
   };
-  ;
 
   const [newStudent, setNewStudent] = useState(initialStudentState);
-  const [newSubjectName, setNewSubjectName] = useState('');
-  const [newSubjectMaxMarks, setNewSubjectMaxMarks] = useState('');
-  const [newExamType, setNewExamType] = useState('');
-  const [newSubjectObtainedMarks, setNewSubjectObtainedMarks] = useState('');
+  
   // API states
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const resetForm = () => {
     setNewStudent(initialStudentState);
-    setNewSubjectName('');
-    setNewExamType('');
-    setNewGrade({ grade: '', min: '' });
     setError(null);
   };
 
@@ -226,74 +219,6 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
     }));
   };
 
-  const handleAddSubject = () => {
-    if (newSubjectName.trim() && newSubjectMaxMarks && newSubjectObtainedMarks !== '') {
-      const max = Number(newSubjectMaxMarks);
-      const obtained = Number(newSubjectObtainedMarks);
-
-      // Optional: basic validation
-      if (obtained > max) {
-        toast.error("Obtained marks cannot be greater than maximum marks");
-        return;
-      }
-
-      setNewStudent(prev => ({
-        ...prev,
-        marksConfig: {
-          ...prev.marksConfig,
-          subjects: [
-            ...prev.marksConfig.subjects,
-            {
-              name: newSubjectName.trim(),
-              maxMarks: max,
-              obtainedMarks: obtained
-            }
-          ]
-        }
-      }));
-
-      // Clear inputs
-      setNewSubjectName('');
-      setNewSubjectMaxMarks('');
-      setNewSubjectObtainedMarks('');
-    } else {
-      toast.warn("Please fill all subject fields");
-    }
-  };
-  const handleRemoveSubject = (index) => {
-    setNewStudent(prev => ({
-      ...prev,
-      marksConfig: {
-        ...prev.marksConfig,
-        subjects: prev.marksConfig.subjects.filter((_, i) => i !== index)
-      }
-    }));
-  };
-
-  // ==================== EXAM TYPES ====================
-  const handleAddExamType = () => {
-    if (newExamType.trim()) {
-      setNewStudent(prev => ({
-        ...prev,
-        marksConfig: {
-          ...prev.marksConfig,
-          examTypes: [...prev.marksConfig.examTypes, newExamType.trim()]
-        }
-      }));
-      setNewExamType('');
-    }
-  };
-
-  const handleRemoveExamType = (index) => {
-    setNewStudent(prev => ({
-      ...prev,
-      marksConfig: {
-        ...prev.marksConfig,
-        examTypes: prev.marksConfig.examTypes.filter((_, i) => i !== index)
-      }
-    }));
-  };
-
   const handleSubmit = async () => {
     setLoading(true);
     setError(null);
@@ -317,17 +242,15 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
         basicInfo: { ...newStudent.basicInfo },
         feeStructure: { ...newStudent.feeStructure, total: totalFees },
         installments,
+        // Initialize marks as empty object - will be added later in Marks component
         marks: {
-          subjects: newStudent.marksConfig.subjects,   // now has obtainedMarks
-          examTypes: newStudent.marksConfig.examTypes,
-          exams: [],  // you can later populate this with per-exam data
-          totalMarks: newStudent.marksConfig.subjects.reduce((sum, s) => sum + s.maxMarks, 0),
-          totalObtained: newStudent.marksConfig.subjects.reduce((sum, s) => sum + s.obtainedMarks, 0),
-          averagePercentage: newStudent.marksConfig.subjects.length > 0
-            ? ((newStudent.marksConfig.subjects.reduce((sum, s) => sum + s.obtainedMarks, 0) /
-              newStudent.marksConfig.subjects.reduce((sum, s) => sum + s.maxMarks, 0)) * 100).toFixed(2)
-            : 0,
-          overallGrade: ''   // you can compute this later based on percentage
+          subjects: [],
+          examTypes: [],
+          exams: [],
+          totalMarks: 0,
+          totalObtained: 0,
+          averagePercentage: 0,
+          overallGrade: ''
         },
         totalPaid: 0,
         pendingAmount: totalFees
@@ -375,12 +298,6 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
             <span>Cancel</span>
           </button>
         </div>
-
-        {/* {error && (
-          <div className="mb-6 p-4 bg-red-50 border border-red-200 text-red-700 rounded-lg">
-            {error}
-          </div>
-        )} */}
 
         <div className="space-y-8">
 
@@ -846,118 +763,6 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
                     </div>
                   </div>
                 ))}
-              </div>
-            </div>
-          </div>
-
-          {/* ───────────────────────────────────────────────
-               MARKS / ACADEMIC CONFIGURATION
-          ──────────────────────────────────────────────── */}
-          <div className="bg-gradient-to-r from-indigo-50 to-indigo-100 rounded-xl p-6 border border-indigo-200">
-            <div className="flex items-center space-x-3 mb-6">
-              <Award className="text-indigo-600" size={24} />
-              <h3 className="text-lg font-semibold text-gray-800">Academic Marks Configuration</h3>
-            </div>
-
-            <div className="space-y-10">
-
-              {/* SUBJECTS WITH MAX MARKS */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-3 block">Subjects (with Maximum Marks)</label>
-                <div className="flex gap-3 mb-4">
-                  <input
-                    type="text"
-                    value={newSubjectName}
-                    onChange={(e) => setNewSubjectName(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Subject name e.g. Mathematics"
-                  />
-                  <input
-                    type="number"
-                    value={newSubjectObtainedMarks}
-                    onChange={(e) => setNewSubjectObtainedMarks(e.target.value)}
-                    className="w-32 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Obtained"
-                    min="0"
-                  />
-                  <input
-                    type="number"
-                    value={newSubjectMaxMarks}
-                    onChange={(e) => setNewSubjectMaxMarks(e.target.value)}
-                    className="w-40 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Max marks"
-                    min="1"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddSubject}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-                  >
-                    <Plus size={18} /> Add
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {newStudent.marksConfig.subjects.map((sub, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-300"
-                    >
-                      <div>
-                        <span className="font-medium">{sub.name}</span>
-                        <span className="text-indigo-600 ml-2">
-                          (Max: {sub.maxMarks} | Obtained: {sub.obtainedMarks})
-                        </span>
-                        <span className="text-gray-500 ml-3">
-                          {((sub.obtainedMarks / sub.maxMarks) * 100).toFixed(1)}%
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveSubject(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* EXAM TYPES */}
-              <div>
-                <label className="text-sm font-medium text-gray-700 mb-3 block">Exam Types</label>
-                <div className="flex gap-3 mb-4">
-                  <input
-                    type="text"
-                    value={newExamType}
-                    onChange={(e) => setNewExamType(e.target.value)}
-                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
-                    placeholder="Exam type e.g. Half Yearly"
-                  />
-                  <button
-                    type="button"
-                    onClick={handleAddExamType}
-                    className="px-6 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 flex items-center gap-2"
-                  >
-                    <Plus size={18} /> Add
-                  </button>
-                </div>
-
-                <div className="space-y-2">
-                  {newStudent.marksConfig.examTypes.map((exam, index) => (
-                    <div key={index} className="flex items-center justify-between p-4 bg-white rounded-lg border border-gray-300">
-                      <span className="text-sm font-medium text-gray-800">{exam}</span>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveExamType(index)}
-                        className="text-red-600 hover:text-red-800"
-                      >
-                        <Trash2 size={18} />
-                      </button>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
