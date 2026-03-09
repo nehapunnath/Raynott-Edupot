@@ -1,40 +1,74 @@
-// src/components/dashboard/StudentList.jsx
-import React, { useState } from 'react';
-import { Users, UserPlus, Eye, Trash2 } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Users, UserPlus, Loader2 } from 'lucide-react';
 import StudentCard from './StudentCard';
 import SearchSection from './SearchSection';
+import StudentApi from '../service/StudentApi'; // Adjust path as needed
 
-const StudentList = ({ 
-  students, 
-  onSelectStudent, 
-  onDeleteStudent, 
-  onSearch, 
-  onClearSearch,
-  onAddNew 
+const StudentList = ({
+  students: initialStudents = [],
+  onSelectStudent,
+  onDeleteStudent,
+  onAddNew,
+  onUpdateStudent // optional
 }) => {
+  const [allStudents, setAllStudents] = useState(initialStudents);
+  const [displayedStudents, setDisplayedStudents] = useState(initialStudents);
   const [searchCriteria, setSearchCriteria] = useState({
     name: '',
-    dob: '',
+    admissionNo: '',
     grade: '',
+    section: '',
     fatherName: '',
-    motherName: '',
-    aadhar: ''
+    motherName: ''
   });
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchError, setSearchError] = useState(null);
 
-  const handleSearch = () => {
-    onSearch(searchCriteria);
+  useEffect(() => {
+    setAllStudents(initialStudents);
+    if (!isSearching) {
+      setDisplayedStudents(initialStudents);
+    }
+  }, [initialStudents]);
+
+  const handleSearch = async () => {
+    const hasAnyCriteria = Object.values(searchCriteria).some(
+      val => val && String(val).trim() !== ''
+    );
+
+    if (!hasAnyCriteria) {
+      setDisplayedStudents(allStudents);
+      setIsSearching(false);
+      setSearchError(null);
+      return;
+    }
+
+    setIsSearching(true);
+    setSearchError(null);
+
+    const response = await StudentApi.searchStudents(searchCriteria);
+
+    if (response.success) {
+      setDisplayedStudents(response.students || []);
+    } else {
+      setSearchError(response.error || 'Search failed');
+      setDisplayedStudents([]);
+    }
+
+    setIsSearching(false);
   };
 
   const handleClear = () => {
     setSearchCriteria({
       name: '',
-      dob: '',
+      admissionNo: '',
       grade: '',
+      section: '',
       fatherName: '',
-      motherName: '',
-      aadhar: ''
+      motherName: ''
     });
-    onClearSearch();
+    setDisplayedStudents(allStudents);
+    setSearchError(null);
   };
 
   return (
@@ -43,33 +77,50 @@ const StudentList = ({
         <div className="flex justify-between items-center mb-8">
           <div>
             <h2 className="text-2xl font-bold text-gray-800">Students Management</h2>
-            <p className="text-gray-600">Total {students.length} students registered</p>
+            <p className="text-gray-600">
+              {isSearching
+                ? `Found ${displayedStudents.length} matching student${displayedStudents.length !== 1 ? 's' : ''}`
+                : `Total ${allStudents.length} students registered`}
+            </p>
           </div>
+
           <button
             onClick={onAddNew}
-            className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2"
+            className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 disabled:opacity-50"
+            disabled={isSearching}
           >
             <UserPlus size={20} />
             <span>Add New Student</span>
           </button>
         </div>
 
-        {/* Search Section */}
         <SearchSection
           searchCriteria={searchCriteria}
           onCriteriaChange={setSearchCriteria}
           onSearch={handleSearch}
           onClear={handleClear}
+          isSearching={isSearching}
         />
 
-        {/* Students List */}
-        {students.length === 0 ? (
+        {searchError && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+            {searchError}
+          </div>
+        )}
+
+        {displayedStudents.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center mx-auto mb-6">
               <Users className="text-amber-600" size={48} />
             </div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Students Found</h3>
-            <p className="text-gray-500 mb-6">Try adjusting your search criteria or add a new student</p>
+            <h3 className="text-xl font-semibold text-gray-700 mb-2">
+              {isSearching ? "No matching students found" : "No students registered yet"}
+            </h3>
+            <p className="text-gray-500 mb-6">
+              {isSearching
+                ? "Try different search terms or clear the filters"
+                : "Add your first student to get started"}
+            </p>
             <button
               onClick={onAddNew}
               className="px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800"
@@ -79,12 +130,20 @@ const StudentList = ({
           </div>
         ) : (
           <div className="space-y-6">
-            {students.map((student) => (
+            {displayedStudents.map((student) => (
               <StudentCard
-                key={student.id}
+                key={student.studentId}
                 student={student}
-                onViewDetails={() => onSelectStudent(student)}
-                onDelete={() => onDeleteStudent(student.id)}
+                onViewDetails={() => onSelectStudent?.(student)}
+                onDelete={(studentId) => onDeleteStudent?.(studentId)}
+                onUpdateStudent={(updated) => {
+                  if (onUpdateStudent) {
+                    onUpdateStudent(updated);
+                  }
+                  // Optional: also update local lists
+                  setAllStudents(prev => prev.map(s => s.studentId === updated.studentId ? updated : s));
+                  setDisplayedStudents(prev => prev.map(s => s.studentId === updated.studentId ? updated : s));
+                }}
               />
             ))}
           </div>

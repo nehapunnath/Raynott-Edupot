@@ -330,6 +330,48 @@ class StudentApi {
       return { success: false, error: error.message };
     }
   }
+
+static async searchStudents(criteria = {}) {
+  try {
+    const headers = await this.getAuthHeader();
+    
+    // Remove empty fields to make URL cleaner
+    const cleanCriteria = {};
+    Object.entries(criteria).forEach(([key, value]) => {
+      if (value && String(value).trim() !== '') {
+        cleanCriteria[key] = value.trim();
+      }
+    });
+
+    const params = new URLSearchParams(cleanCriteria).toString();
+    const url = `${BASE_URL}/students/search?${params}`;
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json();
+
+    // Even if no students found → success with empty array
+    if (response.ok) {
+      return {
+        success: true,
+        students: data.students || [],
+        count: data.count || 0
+      };
+    }
+
+    // Only throw on real server errors (4xx/5xx with meaningful message)
+    throw new Error(data.error || data.message || `Server responded with status ${response.status}`);
+  } catch (error) {
+    console.error('Search students error:', error);
+    return { 
+      success: false, 
+      error: error.message || 'Could not search students. Please try again.' 
+    };
+  }
+}
 }
 
 export default StudentApi;

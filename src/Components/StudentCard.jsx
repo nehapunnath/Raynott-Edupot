@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Eye, Trash2, Download, User, Phone, Mail, Calendar, MapPin, Droplet, 
-  Hash, FileDigit, X, Edit2, Save, AlertCircle, Loader2, Users
+import {
+  Eye, Trash2, Download, User, Phone, Droplet,
+  Hash, FileDigit, X, Edit2, Save, Loader2, AlertCircle
 } from 'lucide-react';
 import FeesInstallment from './FeesInstallment';
 import Marks from './Marks';
@@ -17,56 +17,58 @@ const StudentCard = ({ student, onDelete, onUpdateStudent }) => {
   const [editedStudent, setEditedStudent] = useState(student);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Sync editedStudent when original student changes (but not during editing)
+  // Always keep editedStudent in sync when not actively editing
   useEffect(() => {
     if (!isEditing) {
       setEditedStudent(student);
     }
   }, [student, isEditing]);
 
-  const totalFees = student.feeStructure?.total || 0;
-  const paidAmount = student.totalPaid || 0;
-  const pendingAmount = student.pendingAmount || 0;
+  const currentStudent = isEditing ? editedStudent : student;
+
+  const totalFees = currentStudent.feeStructure?.total || 0;
+  const paidAmount = currentStudent.totalPaid || 0;
+  const pendingAmount = currentStudent.pendingAmount || 0;
   const progress = totalFees > 0 ? Math.round((paidAmount / totalFees) * 100) : 0;
 
   // ────────────────────────────────────────────────
-  // Download Handlers
+  // Download Handlers (use currentStudent / edited when editing)
   // ────────────────────────────────────────────────
   const handleDownloadJSON = () => {
     const studentData = {
       student: {
-        basicInfo: student.basicInfo,
+        basicInfo: currentStudent.basicInfo,
         feeSummary: { totalFees, paidAmount, pendingAmount, progress: `${progress}%` },
-        installments: student.installments || [],
-        marks: student.marks || [],
+        installments: currentStudent.installments || [],
+        marks: currentStudent.marks || [],
         timestamp: new Date().toISOString()
       }
     };
     const jsonString = JSON.stringify(studentData, null, 2);
-    downloadFile(jsonString, 'application/json', `student_${student.basicInfo.admissionNo || 'unknown'}.json`);
+    downloadFile(jsonString, 'application/json', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.json`);
     setShowDownloadOptions(false);
   };
 
   const handleDownloadText = () => {
-    const marksText = student.marks?.map(mark =>
+    const marksText = currentStudent.marks?.map(mark =>
       `${mark.examName || 'Exam'} (${mark.subject || 'Subject'}): ${mark.marksObtained || 0}/${mark.totalMarks || 0}`
     ).join('\n') || 'No marks available';
 
     const textContent = `
 STUDENT INFORMATION
 ====================
-Name: ${student.basicInfo.name || 'N/A'}
-Date of Birth: ${student.basicInfo.dob || 'N/A'}
-Grade: ${student.basicInfo.grade || 'N/A'}
-Section: ${student.basicInfo.section || 'N/A'}
-Admission No: ${student.basicInfo.admissionNo || 'N/A'}
-Blood Group: ${student.basicInfo.bloodGroup || 'Not specified'}
+Name: ${currentStudent.basicInfo?.name || 'N/A'}
+Date of Birth: ${currentStudent.basicInfo?.dob || 'N/A'}
+Grade: ${currentStudent.basicInfo?.grade || 'N/A'}
+Section: ${currentStudent.basicInfo?.section || 'N/A'}
+Admission No: ${currentStudent.basicInfo?.admissionNo || 'N/A'}
+Blood Group: ${currentStudent.basicInfo?.bloodGroup || 'Not specified'}
 
 PARENT INFORMATION
 ==================
-Father: ${student.basicInfo.fatherName || 'N/A'} (${student.basicInfo.fatherPhone || 'N/A'})
-Mother: ${student.basicInfo.motherName || 'N/A'} (${student.basicInfo.motherPhone || 'N/A'})
-Address: ${student.basicInfo.address || 'N/A'}, ${student.basicInfo.city || 'N/A'}
+Father: ${currentStudent.basicInfo?.fatherName || 'N/A'} (${currentStudent.basicInfo?.fatherPhone || 'N/A'})
+Mother: ${currentStudent.basicInfo?.motherName || 'N/A'} (${currentStudent.basicInfo?.motherPhone || 'N/A'})
+Address: ${currentStudent.basicInfo?.address || 'N/A'}, ${currentStudent.basicInfo?.city || 'N/A'}
 
 FEE SUMMARY
 ============
@@ -81,28 +83,29 @@ ${marksText}
 
 Generated on: ${new Date().toLocaleString()}
     `.trim();
-    downloadFile(textContent, 'text/plain', `student_${student.basicInfo.admissionNo || 'unknown'}.txt`);
+
+    downloadFile(textContent, 'text/plain', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.txt`);
     setShowDownloadOptions(false);
   };
 
   const handleDownloadCSV = () => {
     const csvContent = [
       ['Field', 'Value'],
-      ['Student Name', student.basicInfo.name || ''],
-      ['Grade', student.basicInfo.grade || ''],
-      ['Section', student.basicInfo.section || ''],
-      ['Admission No', student.basicInfo.admissionNo || ''],
-      ['Father Name', student.basicInfo.fatherName || ''],
-      ['Father Phone', student.basicInfo.fatherPhone || ''],
-      ['Mother Name', student.basicInfo.motherName || ''],
-      ['Mother Phone', student.basicInfo.motherPhone || ''],
+      ['Student Name', currentStudent.basicInfo?.name || ''],
+      ['Grade', currentStudent.basicInfo?.grade || ''],
+      ['Section', currentStudent.basicInfo?.section || ''],
+      ['Admission No', currentStudent.basicInfo?.admissionNo || ''],
+      ['Father Name', currentStudent.basicInfo?.fatherName || ''],
+      ['Father Phone', currentStudent.basicInfo?.fatherPhone || ''],
+      ['Mother Name', currentStudent.basicInfo?.motherName || ''],
+      ['Mother Phone', currentStudent.basicInfo?.motherPhone || ''],
       ['Total Fees', totalFees],
       ['Paid Amount', paidAmount],
       ['Pending Amount', pendingAmount],
       ['Progress', `${progress}%`],
     ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
 
-    downloadFile(csvContent, 'text/csv', `student_${student.basicInfo.admissionNo || 'unknown'}.csv`);
+    downloadFile(csvContent, 'text/csv', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.csv`);
     setShowDownloadOptions(false);
   };
 
@@ -137,7 +140,7 @@ Generated on: ${new Date().toLocaleString()}
       alert("Admission number is required.");
       return;
     }
-    if (!editedStudent.basicInfo.name?.trim()) {
+    if (!editedStudent.basicInfo?.name?.trim()) {
       alert("Student name is required.");
       return;
     }
@@ -169,15 +172,8 @@ Generated on: ${new Date().toLocaleString()}
         }
 
         setEditedStudent(updatedStudent);
-        
-        // Turn off editing first
         setIsEditing(false);
-        
-        // Then ensure we stay on info tab (micro-delay helps React batch correctly)
-        setTimeout(() => {
-          setActiveTab('info');
-        }, 0);
-
+        setActiveTab('info');
         setShowSuccessMessage(true);
         setTimeout(() => setShowSuccessMessage(false), 4000);
       } else {
@@ -208,6 +204,7 @@ Generated on: ${new Date().toLocaleString()}
     setEditedStudent(student);
     setIsEditing(false);
     setActiveTab('info');
+    setShowSuccessMessage(false);
   };
 
   const handleCloseDetails = () => {
@@ -222,6 +219,12 @@ Generated on: ${new Date().toLocaleString()}
     if (isEditing) {
       setIsEditing(false);
       setEditedStudent(student);
+    }
+  };
+
+  const handleDelete = () => {
+    if (window.confirm(`Are you sure you want to delete ${student.basicInfo?.name || 'this student'}?`)) {
+      onDelete?.(student.studentId);
     }
   };
 
@@ -240,9 +243,9 @@ Generated on: ${new Date().toLocaleString()}
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3">
                 <h3 className="font-semibold text-gray-900 truncate">
-                  {student.basicInfo.name || 'Unnamed'}
+                  {student.basicInfo?.name || 'Unnamed'}
                 </h3>
-                {student.basicInfo.bloodGroup && (
+                {student.basicInfo?.bloodGroup && (
                   <span className="text-xs px-2 py-0.5 bg-red-50 text-red-700 rounded-full flex items-center">
                     <Droplet size={12} className="mr-1" />
                     {student.basicInfo.bloodGroup}
@@ -253,16 +256,16 @@ Generated on: ${new Date().toLocaleString()}
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 mt-1">
                 <span className="flex items-center">
                   <Hash size={14} className="mr-1" />
-                  {student.basicInfo.admissionNo || '—'}
+                  {student.basicInfo?.admissionNo || '—'}
                 </span>
                 <span className="flex items-center">
                   <User size={14} className="mr-1" />
-                  {student.basicInfo.grade ? `Grade ${student.basicInfo.grade}` : '—'}
-                  {student.basicInfo.section ? ` - ${student.basicInfo.section}` : ''}
+                  {student.basicInfo?.grade ? `Grade ${student.basicInfo.grade}` : '—'}
+                  {student.basicInfo?.section ? ` - ${student.basicInfo.section}` : ''}
                 </span>
                 <span className="flex items-center">
                   <Phone size={14} className="mr-1" />
-                  {student.basicInfo.fatherPhone || '—'}
+                  {student.basicInfo?.fatherPhone || '—'}
                 </span>
               </div>
             </div>
@@ -313,7 +316,7 @@ Generated on: ${new Date().toLocaleString()}
             </button>
 
             <button
-              onClick={() => onDelete?.(student.basicInfo?.admissionNo)}
+              onClick={handleDelete}
               className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
               title="Delete student"
             >
@@ -323,9 +326,7 @@ Generated on: ${new Date().toLocaleString()}
         </div>
       </div>
 
-      {/* ──────────────────────────────────────────────── */}
       {/* Details Modal */}
-      {/* ──────────────────────────────────────────────── */}
       {showDetails && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 overflow-y-auto">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-6xl max-h-[92vh] overflow-y-auto">
@@ -334,12 +335,12 @@ Generated on: ${new Date().toLocaleString()}
               <div className="flex justify-between items-start mb-6 sticky top-0 bg-white z-10 pb-2 border-b">
                 <div>
                   <h2 className="text-2xl md:text-3xl font-bold text-gray-900">
-                    {isEditing ? 'Edit Student Information' : (student.basicInfo.name || 'Student Details')}
+                    {isEditing ? 'Edit Student Information' : (student.basicInfo?.name || 'Student Details')}
                   </h2>
                   <p className="text-gray-600 mt-1">
-                    Adm. No: {student.basicInfo.admissionNo || '—'} • 
-                    {student.basicInfo.grade ? ` Grade ${student.basicInfo.grade}` : ''} 
-                    {student.basicInfo.section ? ` - ${student.basicInfo.section}` : ''}
+                    Adm. No: {student.basicInfo?.admissionNo || '—'} •
+                    {student.basicInfo?.grade ? ` Grade ${student.basicInfo.grade}` : ''} 
+                    {student.basicInfo?.section ? ` - ${student.basicInfo.section}` : ''}
                   </p>
                 </div>
                 <button
@@ -374,7 +375,7 @@ Generated on: ${new Date().toLocaleString()}
               <div className="mt-6">
                 {activeTab === 'info' && (
                   <StudentInfo
-                    student={student}
+                    student={currentStudent}
                     editedStudent={editedStudent}
                     isEditing={isEditing}
                     isSaving={isSaving}
@@ -387,11 +388,11 @@ Generated on: ${new Date().toLocaleString()}
                 )}
 
                 {activeTab === 'fees' && (
-                  <FeesInstallment student={student} onUpdateStudent={onUpdateStudent} />
+                  <FeesInstallment student={currentStudent} onUpdateStudent={onUpdateStudent} />
                 )}
 
                 {activeTab === 'marks' && (
-                  <Marks student={student} onUpdateStudent={onUpdateStudent} />
+                  <Marks student={currentStudent} onUpdateStudent={onUpdateStudent} />
                 )}
               </div>
             </div>
