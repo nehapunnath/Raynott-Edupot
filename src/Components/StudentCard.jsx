@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import {
   Eye, Trash2, Download, User, Phone, Droplet,
-  Hash, FileDigit, X, Edit2, Save, Loader2, AlertCircle
+  Hash, X, Edit2, Save, Loader2, AlertCircle
 } from 'lucide-react';
 import FeesInstallment from './FeesInstallment';
 import Marks from './Marks';
@@ -10,14 +10,12 @@ import StudentApi from '../service/StudentApi';
 
 const StudentCard = ({ student, onDelete, onUpdateStudent }) => {
   const [showDetails, setShowDetails] = useState(false);
-  const [showDownloadOptions, setShowDownloadOptions] = useState(false);
   const [activeTab, setActiveTab] = useState('info');
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [editedStudent, setEditedStudent] = useState(student);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
-  // Always keep editedStudent in sync when not actively editing
   useEffect(() => {
     if (!isEditing) {
       setEditedStudent(student);
@@ -32,89 +30,91 @@ const StudentCard = ({ student, onDelete, onUpdateStudent }) => {
   const progress = totalFees > 0 ? Math.round((paidAmount / totalFees) * 100) : 0;
 
   // ────────────────────────────────────────────────
-  // Download Handlers (use currentStudent / edited when editing)
+  // Download - CSV without marks, with more fields
   // ────────────────────────────────────────────────
-  const handleDownloadJSON = () => {
-    const studentData = {
-      student: {
-        basicInfo: currentStudent.basicInfo,
-        feeSummary: { totalFees, paidAmount, pendingAmount, progress: `${progress}%` },
-        installments: currentStudent.installments || [],
-        marks: currentStudent.marks || [],
-        timestamp: new Date().toISOString()
-      }
-    };
-    const jsonString = JSON.stringify(studentData, null, 2);
-    downloadFile(jsonString, 'application/json', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.json`);
-    setShowDownloadOptions(false);
-  };
+  const handleDownloadStudent = () => {
+    const escape = (val = '') => `"${String(val).replace(/"/g, '""')}"`;
 
-  const handleDownloadText = () => {
-    const marksText = currentStudent.marks?.map(mark =>
-      `${mark.examName || 'Exam'} (${mark.subject || 'Subject'}): ${mark.marksObtained || 0}/${mark.totalMarks || 0}`
-    ).join('\n') || 'No marks available';
+    const headers = [
+      "Admission No",
+      "Student Name",
+      "Grade",
+      "Section",
+      "Date of Birth",
+      "Admission Date",
+      "Blood Group",
+      "Student Aadhar",
+      "Father Name",
+      "Father Aadhar",
+      "Father Phone",
+      "Father Email",
+      "Father Occupation",
+      "Mother Name",
+      "Mother Aadhar",
+      "Mother Phone",
+      "Mother Email",
+      "Mother Occupation",
+      "Full Address",
+      "City",
+      "State",
+      "Pincode",
+      "Emergency Contact",
+      "Emergency Phone",
+      "Total Fees (₹)",
+      "Paid Amount (₹)",
+      "Pending Amount (₹)",
+      "Progress (%)",
+      "Installments Count",
+      "Generated On"
+    ];
 
-    const textContent = `
-STUDENT INFORMATION
-====================
-Name: ${currentStudent.basicInfo?.name || 'N/A'}
-Date of Birth: ${currentStudent.basicInfo?.dob || 'N/A'}
-Grade: ${currentStudent.basicInfo?.grade || 'N/A'}
-Section: ${currentStudent.basicInfo?.section || 'N/A'}
-Admission No: ${currentStudent.basicInfo?.admissionNo || 'N/A'}
-Blood Group: ${currentStudent.basicInfo?.bloodGroup || 'Not specified'}
+    const row = [
+      escape(currentStudent.basicInfo?.admissionNo),
+      escape(currentStudent.basicInfo?.name),
+      escape(currentStudent.basicInfo?.grade),
+      escape(currentStudent.basicInfo?.section),
+      escape(currentStudent.basicInfo?.dob),
+      escape(currentStudent.basicInfo?.admissionDate),
+      escape(currentStudent.basicInfo?.bloodGroup),
+      escape(currentStudent.basicInfo?.studentAadhar),
+      escape(currentStudent.basicInfo?.fatherName),
+      escape(currentStudent.basicInfo?.fatherAadhar),
+      escape(currentStudent.basicInfo?.fatherPhone),
+      escape(currentStudent.basicInfo?.fatherEmail),
+      escape(currentStudent.basicInfo?.fatherOccupation),
+      escape(currentStudent.basicInfo?.motherName),
+      escape(currentStudent.basicInfo?.motherAadhar),
+      escape(currentStudent.basicInfo?.motherPhone),
+      escape(currentStudent.basicInfo?.motherEmail),
+      escape(currentStudent.basicInfo?.motherOccupation),
+      escape(currentStudent.basicInfo?.address),
+      escape(currentStudent.basicInfo?.city),
+      escape(currentStudent.basicInfo?.state),
+      escape(currentStudent.basicInfo?.pincode),
+      escape(currentStudent.basicInfo?.emergencyContact),
+      escape(currentStudent.basicInfo?.emergencyPhone),
+      totalFees,
+      paidAmount,
+      pendingAmount,
+      progress,
+      currentStudent.installments?.length || 0,
+      escape(new Date().toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' }))
+    ];
 
-PARENT INFORMATION
-==================
-Father: ${currentStudent.basicInfo?.fatherName || 'N/A'} (${currentStudent.basicInfo?.fatherPhone || 'N/A'})
-Mother: ${currentStudent.basicInfo?.motherName || 'N/A'} (${currentStudent.basicInfo?.motherPhone || 'N/A'})
-Address: ${currentStudent.basicInfo?.address || 'N/A'}, ${currentStudent.basicInfo?.city || 'N/A'}
-
-FEE SUMMARY
-============
-Total Fees: ₹${totalFees.toLocaleString()}
-Paid Amount: ₹${paidAmount.toLocaleString()}
-Pending Amount: ₹${pendingAmount.toLocaleString()}
-Payment Progress: ${progress}%
-
-ACADEMIC MARKS
-===============
-${marksText}
-
-Generated on: ${new Date().toLocaleString()}
-    `.trim();
-
-    downloadFile(textContent, 'text/plain', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.txt`);
-    setShowDownloadOptions(false);
-  };
-
-  const handleDownloadCSV = () => {
     const csvContent = [
-      ['Field', 'Value'],
-      ['Student Name', currentStudent.basicInfo?.name || ''],
-      ['Grade', currentStudent.basicInfo?.grade || ''],
-      ['Section', currentStudent.basicInfo?.section || ''],
-      ['Admission No', currentStudent.basicInfo?.admissionNo || ''],
-      ['Father Name', currentStudent.basicInfo?.fatherName || ''],
-      ['Father Phone', currentStudent.basicInfo?.fatherPhone || ''],
-      ['Mother Name', currentStudent.basicInfo?.motherName || ''],
-      ['Mother Phone', currentStudent.basicInfo?.motherPhone || ''],
-      ['Total Fees', totalFees],
-      ['Paid Amount', paidAmount],
-      ['Pending Amount', pendingAmount],
-      ['Progress', `${progress}%`],
-    ].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+      headers.join(','),
+      row.join(',')
+    ].join('\n');
 
-    downloadFile(csvContent, 'text/csv', `student_${currentStudent.basicInfo?.admissionNo || 'unknown'}.csv`);
-    setShowDownloadOptions(false);
-  };
-
-  const downloadFile = (content, mimeType, filename) => {
-    const blob = new Blob([content], { type: mimeType });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = filename;
+
+    const dateStr = new Date().toISOString().slice(0, 10);
+    const admNo = (currentStudent.basicInfo?.admissionNo || 'unknown').trim().replace(/\s+/g, '_');
+    link.download = `student_${admNo}_${dateStr}.csv`;
+
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -122,9 +122,8 @@ Generated on: ${new Date().toLocaleString()}
   };
 
   // ────────────────────────────────────────────────
-  // Edit & Save Logic
+  // Edit & Save Logic (unchanged)
   // ────────────────────────────────────────────────
-
   const handleChange = useCallback((field, value) => {
     setEditedStudent(prev => ({
       ...prev,
@@ -146,7 +145,6 @@ Generated on: ${new Date().toLocaleString()}
     }
 
     setIsSaving(true);
-
     try {
       const updates = {
         basicInfo: {
@@ -157,7 +155,6 @@ Generated on: ${new Date().toLocaleString()}
       };
 
       const result = await StudentApi.updateStudent(student.studentId, updates);
-
       if (result.success) {
         const updatedStudent = {
           ...student,
@@ -239,7 +236,6 @@ Generated on: ${new Date().toLocaleString()}
                 {student.basicInfo?.name?.charAt(0) || '?'}
               </span>
             </div>
-
             <div className="flex-1 min-w-0">
               <div className="flex items-center space-x-3">
                 <h3 className="font-semibold text-gray-900 truncate">
@@ -252,7 +248,6 @@ Generated on: ${new Date().toLocaleString()}
                   </span>
                 )}
               </div>
-
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-gray-600 mt-1">
                 <span className="flex items-center">
                   <Hash size={14} className="mr-1" />
@@ -269,7 +264,6 @@ Generated on: ${new Date().toLocaleString()}
                 </span>
               </div>
             </div>
-
             <div className="hidden sm:block w-44">
               <div className="flex justify-between text-xs text-gray-600 mb-1">
                 <span>Fee Progress</span>
@@ -286,26 +280,12 @@ Generated on: ${new Date().toLocaleString()}
 
           <div className="flex items-center space-x-1.5">
             <button
-              onClick={() => setShowDownloadOptions(prev => !prev)}
+              onClick={handleDownloadStudent}
               className="p-2 text-gray-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-colors"
-              title="Download"
+              title="Download student data as CSV (Excel)"
             >
               <Download size={18} />
             </button>
-
-            {showDownloadOptions && (
-              <div className="absolute right-4 mt-10 w-52 bg-white rounded-lg shadow-xl border border-gray-200 z-20 py-1 text-sm">
-                <button onClick={handleDownloadJSON} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
-                  <FileDigit size={16} /> JSON
-                </button>
-                <button onClick={handleDownloadText} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
-                  <FileDigit size={16} /> Text
-                </button>
-                <button onClick={handleDownloadCSV} className="w-full text-left px-4 py-2.5 hover:bg-gray-50 flex items-center gap-2">
-                  <Hash size={16} /> CSV
-                </button>
-              </div>
-            )}
 
             <button
               onClick={handleViewDetails}
@@ -339,7 +319,7 @@ Generated on: ${new Date().toLocaleString()}
                   </h2>
                   <p className="text-gray-600 mt-1">
                     Adm. No: {student.basicInfo?.admissionNo || '—'} •
-                    {student.basicInfo?.grade ? ` Grade ${student.basicInfo.grade}` : ''} 
+                    {student.basicInfo?.grade ? ` Grade ${student.basicInfo.grade}` : ''}
                     {student.basicInfo?.section ? ` - ${student.basicInfo.section}` : ''}
                   </p>
                 </div>
@@ -386,11 +366,9 @@ Generated on: ${new Date().toLocaleString()}
                     onCancel={handleCancel}
                   />
                 )}
-
                 {activeTab === 'fees' && (
                   <FeesInstallment student={currentStudent} onUpdateStudent={onUpdateStudent} />
                 )}
-
                 {activeTab === 'marks' && (
                   <Marks student={currentStudent} onUpdateStudent={onUpdateStudent} />
                 )}

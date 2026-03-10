@@ -323,7 +323,17 @@ const AdminDashboard = ({ user, onLogout }) => {
 
                 <button
                   className="px-6 py-4 border border-amber-300 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center space-x-3"
-                >
+                
+                   onClick={() => {
+                     const csvContent = schools.map(s => `${s.name},${s.email},${s.phone},${s.status}`).join('\n');
+                    const blob = new Blob([csvContent], { type: 'text/csv' });
+                     const url = URL.createObjectURL(blob);
+                     const link = document.createElement('a');
+                     link.href = url;
+                    link.download = 'schools_data.csv';
+                    link.click();
+                   }}
+                   >
                   <Download size={20} />
                   <span className="font-medium">Export Data</span>
                 </button>
