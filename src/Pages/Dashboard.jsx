@@ -6,6 +6,9 @@ import AllStudents from '../Components/AllStudents';
 // import StudentDetails from '../Components/StudentDetails';
 import AddStudent from '../Components/AddStudents';
 import StudentApi from '../service/StudentApi';
+import { toast } from 'react-toastify';
+import { auth } from '../service/firebase';
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('allStudents'); 
@@ -13,6 +16,8 @@ const Dashboard = ({ user, onLogout }) => {
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [error, setError] = useState(null);
+
+  const navigate=useNavigate()
 
 
   // Initialize with sample data
@@ -118,6 +123,19 @@ const Dashboard = ({ user, onLogout }) => {
   }
 };
 
+const handleLogout = async () => {
+    try {
+      await auth.signOut();
+      localStorage.removeItem('user');           // clear any stored user data
+      localStorage.removeItem('schoolId');       // if you stored this
+      toast.success("Logged out successfully");
+      navigate('/');
+    } catch (error) {
+      console.error("Logout error:", error);
+      toast.error("Logout failed. Please try again.");
+    }
+  };
+
   // Update the navigation tabs
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
@@ -134,7 +152,7 @@ const Dashboard = ({ user, onLogout }) => {
               <p className="text-sm text-amber-200">{user?.email}</p>
             </div>
             <button
-              onClick={onLogout}
+              onClick={handleLogout}
               className="flex items-center space-x-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-300 backdrop-blur-sm text-white"
             >
               <LogOut size={18} />

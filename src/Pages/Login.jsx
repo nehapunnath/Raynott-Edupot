@@ -1,7 +1,7 @@
 // src/pages/LoginPage.jsx
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { BookOpen, School, Calculator, ShieldCheck, LogIn } from 'lucide-react';
+import { BookOpen, School, Calculator, ShieldCheck, LogIn, ArrowLeft } from 'lucide-react';
 import AuthApi from '../service/AuthApi';   
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
@@ -56,6 +56,10 @@ const Login = () => {
   }
 };
 
+ const handleBackToHome = () => {
+    navigate('/');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50/50 via-white to-amber-100/30 flex items-center justify-center p-4">
       <motion.div
@@ -67,7 +71,6 @@ const Login = () => {
         <div className="flex flex-col lg:flex-row">
           {/* Brand Section - unchanged */}
           <div className="lg:w-2/5 bg-gradient-to-br from-amber-800 via-amber-700 to-amber-600 p-8 md:p-12 text-white flex flex-col justify-center relative overflow-hidden">
-            {/* ... background pattern, logo, features, stats ... */}
             <div className="relative mb-8">
               <div className="flex items-center space-x-4 mb-6">
                 <div className="relative">
@@ -117,6 +120,15 @@ const Login = () => {
 
           {/* Login Form Section */}
           <div className="lg:w-3/5 p-8 md:p-12 flex flex-col justify-center">
+           <button
+              onClick={handleBackToHome}
+              className="absolute top-6 left-6 flex items-center space-x-2 text-amber-600 hover:text-amber-600 transition-colors group"
+            >
+              <div className="p-2 rounded-lg bg-gray-100 group-hover:bg-amber-50 transition-colors">
+                <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
+              </div>
+              <span className="font-medium">Back to Home</span>
+            </button>
             <div className="max-w-md mx-auto w-full">
               <div className="text-center mb-8">
                 <h2 className="text-3xl font-bold text-gray-800">Welcome</h2>
