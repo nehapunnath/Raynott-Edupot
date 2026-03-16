@@ -209,6 +209,36 @@ const handleLogout = async () => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+
+            <button
+              onClick={() => setActiveTab('fees')}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'fees' 
+                ? 'text-amber-600' 
+                : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <div className="flex items-center space-x-2">
+                {/* <cash size={18} /> */}
+                <span>Fees</span>
+              </div>
+              {activeTab === 'fees' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab('marks')}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'marks' 
+                ? 'text-amber-600' 
+                : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <div className="flex items-center space-x-2">
+                {/* <cash size={18} /> */}
+                <span>Marks</span>
+              </div>
+              {activeTab === 'marks' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
+              )}
+            </button>
+
             
           </nav>
         </div>
