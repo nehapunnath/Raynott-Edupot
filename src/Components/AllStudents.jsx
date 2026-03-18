@@ -1,28 +1,29 @@
 // src/components/dashboard/components/AllStudents.jsx
 import React, { useState } from 'react';
-import { Search, Filter, Download, User, Calendar, BookOpen, Hash, Phone } from 'lucide-react';
+import { Search, Filter, Download, User, Calendar, BookOpen, Hash, Phone, RefreshCw } from 'lucide-react';
 import StudentCard from './StudentCard';
 
-const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
+const AllStudents = ({ students, onViewDetails, onDelete, onUpdateStudent, onRefresh, isLoading }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedGrade, setSelectedGrade] = useState('');
   const [selectedSection, setSelectedSection] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
+  const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Get unique grades and sections for filters
-  const grades = [...new Set(students.map(s => s.basicInfo.grade))].sort();
-  const sections = [...new Set(students.map(s => s.basicInfo.section))].sort();
+  const grades = [...new Set(students.map(s => s.basicInfo?.grade).filter(Boolean))].sort();
+  const sections = [...new Set(students.map(s => s.basicInfo?.section).filter(Boolean))].sort();
 
   // Filter students based on search criteria
   const filteredStudents = students.filter(student => {
     const matchesSearch = !searchTerm || 
-      student.basicInfo.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.basicInfo.admissionNo.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.basicInfo.fatherName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.basicInfo.fatherPhone.includes(searchTerm);
+      student.basicInfo?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.basicInfo?.admissionNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.basicInfo?.fatherName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.basicInfo?.fatherPhone?.includes(searchTerm);
 
-    const matchesGrade = !selectedGrade || student.basicInfo.grade === selectedGrade;
-    const matchesSection = !selectedSection || student.basicInfo.section === selectedSection;
+    const matchesGrade = !selectedGrade || student.basicInfo?.grade === selectedGrade;
+    const matchesSection = !selectedSection || student.basicInfo?.section === selectedSection;
     const matchesStatus = !selectedStatus || student.status === selectedStatus;
 
     return matchesSearch && matchesGrade && matchesSection && matchesStatus;
@@ -30,25 +31,23 @@ const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
 
   // Calculate summary statistics
   const totalStudents = students.length;
-  const totalFees = students.reduce((sum, student) => sum + student.feeStructure.total, 0);
-  const totalPaid = students.reduce((sum, student) => sum + student.totalPaid, 0);
-  const totalPending = students.reduce((sum, student) => sum + student.pendingAmount, 0);
-  const averageProgress = students.length > 0 
-    ? Math.round((totalPaid / totalFees) * 100) 
-    : 0;
+  const totalFees = students.reduce((sum, student) => sum + (student.feeStructure?.total || 0), 0);
+  const totalPaid = students.reduce((sum, student) => sum + (student.totalPaid || 0), 0);
+  const totalPending = students.reduce((sum, student) => sum + (student.pendingAmount || 0), 0);
+  const averageProgress = totalFees > 0 ? Math.round((totalPaid / totalFees) * 100) : 0;
 
   const handleDownloadAll = () => {
     const allStudentsData = students.map(student => ({
-      name: student.basicInfo.name,
-      admissionNo: student.basicInfo.admissionNo,
-      grade: student.basicInfo.grade,
-      section: student.basicInfo.section,
-      fatherName: student.basicInfo.fatherName,
-      phone: student.basicInfo.fatherPhone,
-      totalFees: student.feeStructure.total,
-      paidAmount: student.totalPaid,
-      pendingAmount: student.pendingAmount,
-      status: student.status
+      name: student.basicInfo?.name || '',
+      admissionNo: student.basicInfo?.admissionNo || '',
+      grade: student.basicInfo?.grade || '',
+      section: student.basicInfo?.section || '',
+      fatherName: student.basicInfo?.fatherName || '',
+      phone: student.basicInfo?.fatherPhone || '',
+      totalFees: student.feeStructure?.total || 0,
+      paidAmount: student.totalPaid || 0,
+      pendingAmount: student.pendingAmount || 0,
+      status: student.status || ''
     }));
 
     const csvContent = [
@@ -85,8 +84,28 @@ const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
     setSelectedStatus('');
   };
 
+  const handleRefresh = async () => {
+    if (onRefresh) {
+      setIsRefreshing(true);
+      await onRefresh();
+      setIsRefreshing(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Refresh Button */}
+      <div className="flex justify-end">
+        <button
+          onClick={handleRefresh}
+          disabled={isRefreshing || isLoading}
+          className="flex items-center space-x-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 disabled:opacity-50"
+        >
+          <RefreshCw size={18} className={(isRefreshing || isLoading) ? 'animate-spin' : ''} />
+          <span>{isRefreshing || isLoading ? 'Refreshing...' : 'Refresh List'}</span>
+        </button>
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
         <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
@@ -267,20 +286,41 @@ const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800">
-            All Students ({filteredStudents.length})
+            All Students {isLoading ? '(Loading...)' : `(${filteredStudents.length})`}
           </h3>
-          <p className="text-sm text-gray-600">
-            Showing {filteredStudents.length} of {totalStudents} students
-          </p>
+          {!isLoading && (
+            <p className="text-sm text-gray-600">
+              Showing {filteredStudents.length} of {totalStudents} students
+            </p>
+          )}
         </div>
         <div className="text-sm text-gray-600">
           Total Pending: <span className="font-bold text-red-600">₹{totalPending.toLocaleString()}</span>
         </div>
       </div>
 
-      {/* Students List */}
+      {/* Students List - ONLY ONE INSTANCE */}
       <div className="space-y-6">
-        {filteredStudents.length === 0 ? (
+        {isLoading ? (
+          // Show skeleton loaders while loading
+          <div className="space-y-4">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="bg-white border border-gray-200 rounded-lg p-4 animate-pulse">
+                <div className="flex items-center space-x-4">
+                  <div className="w-10 h-10 bg-gray-300 rounded-full"></div>
+                  <div className="flex-1">
+                    <div className="h-4 bg-gray-300 rounded w-1/4 mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-1/3"></div>
+                  </div>
+                  <div className="w-44">
+                    <div className="h-2 bg-gray-200 rounded-full mb-1"></div>
+                    <div className="h-2 bg-gray-200 rounded-full w-3/4"></div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : filteredStudents.length === 0 ? (
           <div className="text-center py-12">
             <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
               <User className="text-gray-400" size={32} />
@@ -294,19 +334,20 @@ const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
           </div>
         ) : (
           filteredStudents.map(student => (
-            <StudentCard
-              key={student.id}
-              student={student}
-              onViewDetails={() => onViewDetails(student)}
-              onDelete={() => onDelete(student.id)}
-              onUpdateStudent={onUpdateStudent}
-            />
+             <div key={student.id || student.studentId} id={`student-${student.studentId || student.id}`}>
+    <StudentCard
+      student={student}
+      onViewDetails={() => onViewDetails(student)}
+      onDelete={() => onDelete(student.studentId || student.id)}
+      onUpdateStudent={onUpdateStudent}
+    />
+  </div>
           ))
         )}
       </div>
 
       {/* Quick Stats Footer */}
-      {filteredStudents.length > 0 && (
+      {filteredStudents.length > 0 && !isLoading && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="text-center">
@@ -322,13 +363,13 @@ const AllStudents = ({ students, onViewDetails, onDelete,onUpdateStudent }) => {
             <div className="text-center">
               <div className="text-sm text-gray-600">Fully Paid</div>
               <div className="text-lg font-bold text-green-600">
-                {students.filter(s => s.pendingAmount === 0).length}
+                {students.filter(s => (s.pendingAmount || 0) === 0).length}
               </div>
             </div>
             <div className="text-center">
               <div className="text-sm text-gray-600">With Dues</div>
               <div className="text-lg font-bold text-red-600">
-                {students.filter(s => s.pendingAmount > 0).length}
+                {students.filter(s => (s.pendingAmount || 0) > 0).length}
               </div>
             </div>
           </div>

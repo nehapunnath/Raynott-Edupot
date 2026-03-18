@@ -219,66 +219,72 @@ const AddStudent = ({ onStudentAdded, onCancel }) => {
     }));
   };
 
-  const handleSubmit = async () => {
-    setLoading(true);
-    setError(null);
+  // In AddStudent.jsx, update the handleSubmit function where you call onStudentAdded:
 
-    try {
-      const totalFees = calculateTotalFees();
+const handleSubmit = async () => {
+  setLoading(true);
+  setError(null);
 
-      const installments = newStudent.installmentConfig.installments.map((inst, index) => ({
-        id: Date.now() + index + 1,
-        number: inst.number,
-        amount: Number(inst.amount) || 0,
-        paid: 0,
-        dueDate: inst.dueDate || '',
-        paidDate: '',
-        status: 'pending',
-        paymentMode: '',
-        notes: ''
-      }));
+  try {
+    const totalFees = calculateTotalFees();
 
-      const studentData = {
-        basicInfo: { ...newStudent.basicInfo },
-        feeStructure: { ...newStudent.feeStructure, total: totalFees },
-        installments,
-        // Initialize marks as empty object - will be added later in Marks component
-        marks: {
-          subjects: [],
-          examTypes: [],
-          exams: [],
-          totalMarks: 0,
-          totalObtained: 0,
-          averagePercentage: 0,
-          overallGrade: ''
-        },
-        totalPaid: 0,
-        pendingAmount: totalFees
-      };
+    const installments = newStudent.installmentConfig.installments.map((inst, index) => ({
+      id: Date.now() + index + 1,
+      number: inst.number,
+      amount: Number(inst.amount) || 0,
+      paid: 0,
+      dueDate: inst.dueDate || '',
+      paidDate: '',
+      status: 'pending',
+      paymentMode: '',
+      notes: ''
+    }));
 
-      const result = await StudentApi.createStudent(studentData);
+    const studentData = {
+      basicInfo: { ...newStudent.basicInfo },
+      feeStructure: { ...newStudent.feeStructure, total: totalFees },
+      installments,
+      marks: {
+        subjects: [],
+        examTypes: [],
+        exams: [],
+        totalMarks: 0,
+        totalObtained: 0,
+        averagePercentage: 0,
+        overallGrade: ''
+      },
+      totalPaid: 0,
+      pendingAmount: totalFees
+    };
 
-      if (!result.success) {
-        throw new Error(result.error || 'Failed to create student');
-      }
+    console.log('Submitting student data:', studentData);
+    
+    const result = await StudentApi.createStudent(studentData);
 
-      toast.success(`Student created successfully!`);
+    if (!result.success) {
+      throw new Error(result.error || 'Failed to create student');
+    }
 
-      if (onStudentAdded) {
-        onStudentAdded(result.student);
-      }
+    console.log('Create student result:', result);
+    
+    toast.success(`Student created successfully!`);
 
-      // Reset form after success
-      resetForm();
+    // IMPORTANT: Pass the complete result.student object
+    if (onStudentAdded) {
+      onStudentAdded(result.student);
+    }
 
-    } catch (err) {
-      console.error('Student creation failed:', err);
-      setError(err.message || 'Could not create student. Please check your input.');
-      toast.error(err.message || "Student creation failed")
-    } finally {
-      setLoading(false);
-    } 
-  };
+    // Reset form after success
+    resetForm();
+
+  } catch (err) {
+    console.error('Student creation failed:', err);
+    setError(err.message || 'Could not create student. Please check your input.');
+    toast.error(err.message || "Student creation failed");
+  } finally {
+    setLoading(false);
+  }
+};
 
   return (
     <div className="max-w-7xl mx-auto">

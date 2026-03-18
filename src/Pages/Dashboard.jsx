@@ -1,133 +1,128 @@
 // src/components/dashboard/Dashboard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { LogOut, Users, UserPlus, List, BarChart3, Search } from 'lucide-react';
 import StudentList from '../Components/StudentList';
-import AllStudents from '../Components/AllStudents'; 
-// import StudentDetails from '../Components/StudentDetails';
+import AllStudents from '../Components/AllStudents';
 import AddStudent from '../Components/AddStudents';
 import StudentApi from '../service/StudentApi';
 import { toast } from 'react-toastify';
 import { auth } from '../service/firebase';
 import { useNavigate } from 'react-router-dom';
+import FeesTab from '../Components/FeesTab';
+import MarksTab from '../Components/MarksTab';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('allStudents'); 
+  const [activeTab, setActiveTab] = useState('allStudents');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
   const [error, setError] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const navigate=useNavigate()
+  const navigate = useNavigate();
 
-
-  // Initialize with sample data
-  useEffect(() => {
-    const fetchStudents = async () => {
-      try {
-        // setLoading(true);
-        setError(null);
-        
-        const result = await StudentApi.getAllStudents();
-        
-        if (result.success) {
-          // Important: backend returns studentId, frontend was using .id
-          // Map to keep compatibility with your current components
-          const normalized = result.students.map(stu => ({
-            ...stu,
-            id: stu.studentId,           // ← make .id = studentId for existing components
-          }));
-          setStudents(normalized);
-          setFilteredStudents(normalized);
-        } else {
-          setError(result.error || 'Failed to load students');
-        }
-      } catch (err) {
-        console.error('Dashboard fetch error:', err);
-        setError(err.message || 'Network error while loading students');
-      } 
-      // finally {
-      //   setLoading(false);
-      // }
-    };
-
-    fetchStudents();
+  // Create a refresh function
+  const refreshStudents = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const result = await StudentApi.getAllStudents();
+      if (result.success) {
+        const normalized = result.students.map(stu => ({
+          ...stu,
+          id: stu.studentId,
+        }));
+        setStudents(normalized);
+        setFilteredStudents(normalized);
+        console.log('Students refreshed:', normalized.length);
+      } else {
+        setError(result.error || 'Failed to load students');
+      }
+    } catch (err) {
+      console.error('Refresh failed:', err);
+      setError(err.message || 'Network error while loading students');
+    } finally {
+      setIsLoading(false);
+    }
   }, []);
 
- const handleAddStudent = async (newStudentData) => {
+  // Initial load
+  useEffect(() => {
+    refreshStudents();
+  }, [refreshStudents]);
+
+  // Refresh when tab changes to 'allStudents'
+  useEffect(() => {
+    if (activeTab === 'allStudents') {
+      refreshStudents();
+    }
+  }, [activeTab, refreshStudents]);
+
+  const handleAddStudent = async (newStudentData) => {
     try {
+      console.log('Adding student with data:', newStudentData);
+      
       const result = await StudentApi.createStudent(newStudentData);
+      console.log('API response:', result);
       
       if (result.success) {
-        // Add the newly created student to local state
-        const newStudentWithId = {
-          ...result.student,
-          id: result.studentId,
-        };
-        setStudents(prev => [...prev, newStudentWithId]);
-        setFilteredStudents(prev => [...prev, newStudentWithId]);
+        toast.success('Student added successfully!');
+        
+        // Switch to all students tab
         setActiveTab('allStudents');
+        
+        // Refresh immediately without delay
+        await refreshStudents();
+        
+        // Optionally scroll to the newly added student
+        setTimeout(() => {
+          const newStudentElement = document.getElementById(`student-${result.studentId}`);
+          if (newStudentElement) {
+            newStudentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            newStudentElement.classList.add('highlight-new-student');
+            setTimeout(() => {
+              newStudentElement.classList.remove('highlight-new-student');
+            }, 3000);
+          }
+        }, 100);
+        
       } else {
-        alert('Failed to add student: ' + (result.error || 'Unknown error'));
+        toast.error('Failed to add student: ' + (result.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Add student failed:', err);
-      alert('Error adding student');
+      toast.error('Error adding student: ' + err.message);
     }
   };
 
- const handleDeleteStudent = async (studentId) => {
+  const handleDeleteStudent = async (studentId) => {
     if (!window.confirm('Are you sure you want to delete this student?')) return;
 
     try {
       const result = await StudentApi.deleteStudent(studentId);
       if (result.success) {
-        setStudents(prev => prev.filter(s => s.studentId !== studentId));
-        setFilteredStudents(prev => prev.filter(s => s.studentId !== studentId));
+        toast.success('Student deleted successfully');
+        await refreshStudents(); // Refresh immediately
         if (selectedStudent?.studentId === studentId) {
           setSelectedStudent(null);
         }
       } else {
-        alert('Delete failed: ' + (result.error || 'Unknown error'));
+        toast.error('Delete failed: ' + (result.error || 'Unknown error'));
       }
     } catch (err) {
       console.error('Delete error:', err);
-      alert('Error deleting student');
+      toast.error('Error deleting student');
     }
   };
 
-  const handleUpdateStudent = (updatedStudent) => {
-  console.log("handleUpdateStudent received:", {
-    studentId: updatedStudent.studentId,
-    totalPaid: updatedStudent.totalPaid,
-    pendingAmount: updatedStudent.pendingAmount,
-    installmentsCount: updatedStudent.installments?.length
-  });
+  const handleUpdateStudent = async () => {
+    await refreshStudents(); // Refresh after update
+  };
 
-  const key = updatedStudent.studentId || updatedStudent.id;
-  console.log("Using key for match:", key);
-
-  const updatedStudents = students.map(student => {
-    const studentKey = student.studentId || student.id;
-    return studentKey === key ? updatedStudent : student;
-  });
-
-  console.log("Updated students length:", updatedStudents.length);
-
-  setStudents(updatedStudents);
-  setFilteredStudents(updatedStudents);
-
-  const selectedKey = selectedStudent?.studentId || selectedStudent?.id;
-  if (selectedKey === key) {
-    console.log("Updating selected student too");
-    setSelectedStudent(updatedStudent);
-  }
-};
-
-const handleLogout = async () => {
+  const handleLogout = async () => {
     try {
       await auth.signOut();
-      localStorage.removeItem('user');           // clear any stored user data
-      localStorage.removeItem('schoolId');       // if you stored this
+      localStorage.removeItem('user');
+      localStorage.removeItem('schoolId');
       toast.success("Logged out successfully");
       navigate('/');
     } catch (error) {
@@ -136,7 +131,6 @@ const handleLogout = async () => {
     }
   };
 
-  // Update the navigation tabs
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       {/* Header */}
@@ -168,8 +162,8 @@ const handleLogout = async () => {
           <nav className="flex space-x-8">
             <button
               onClick={() => setActiveTab('search')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'search' 
-                ? 'text-amber-600' 
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'search'
+                ? 'text-amber-600'
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
@@ -182,23 +176,23 @@ const handleLogout = async () => {
             </button>
             <button
               onClick={() => setActiveTab('allStudents')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'allStudents' 
-                ? 'text-amber-600' 
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'allStudents'
+                ? 'text-amber-600'
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
                 <List size={18} />
-                <span>All Students ({students.length})</span>
+                <span>All Students </span>
               </div>
               {activeTab === 'allStudents' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
-            
+
             <button
               onClick={() => setActiveTab('addStudent')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'addStudent' 
-                ? 'text-amber-600' 
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'addStudent'
+                ? 'text-amber-600'
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
@@ -212,12 +206,11 @@ const handleLogout = async () => {
 
             <button
               onClick={() => setActiveTab('fees')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'fees' 
-                ? 'text-amber-600' 
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'fees'
+                ? 'text-amber-600'
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
-                {/* <cash size={18} /> */}
                 <span>Fees</span>
               </div>
               {activeTab === 'fees' && (
@@ -226,56 +219,69 @@ const handleLogout = async () => {
             </button>
             <button
               onClick={() => setActiveTab('marks')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'marks' 
-                ? 'text-amber-600' 
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'marks'
+                ? 'text-amber-600'
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
-                {/* <cash size={18} /> */}
                 <span>Marks</span>
               </div>
               {activeTab === 'marks' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
-
-            
           </nav>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-6">
-        {activeTab === 'addStudent' ? (
-          <AddStudent 
-            onAddStudent={handleAddStudent}
-            onCancel={() => setActiveTab('allStudents')}
-          />
-        ) : activeTab === 'search' ? (
-          <StudentList
-            students={filteredStudents}
-            onSelectStudent={setSelectedStudent}
-            onDeleteStudent={handleDeleteStudent}
-            onAddNew={() => setActiveTab('addStudent')}
-          />
-        ) : (
-          <AllStudents
-            students={students}
-            onViewDetails={setSelectedStudent}
-            onDelete={handleDeleteStudent}
-            onUpdateStudent={handleUpdateStudent}
-          />
-        )}
-      </div>
+  {activeTab === 'addStudent' ? (
+    <AddStudent
+      onAddStudent={handleAddStudent}
+      onCancel={() => setActiveTab('allStudents')}
+    />
+  ) : activeTab === 'search' ? (
+    <StudentList
+      students={filteredStudents}
+      onSelectStudent={setSelectedStudent}
+      onDeleteStudent={handleDeleteStudent}
+      onAddNew={() => setActiveTab('addStudent')}
+    />
+  ) : activeTab === 'fees' ? (
+    <FeesTab
+      students={students}
+      onUpdateStudent={handleUpdateStudent}
+    />
+  ) : activeTab === 'marks' ? (
+      
+     <MarksTab
+    students={students}
+    onUpdateStudent={handleUpdateStudent}
+  />
+  ) : (
+    <AllStudents
+      students={students}
+      onViewDetails={setSelectedStudent}
+      onDelete={handleDeleteStudent}
+      onUpdateStudent={handleUpdateStudent}
+      onRefresh={refreshStudents}
+      isLoading={isLoading}
+    />
+  )}
+</div>
 
-      {/* Student Details Modal */}
-      {/* {selectedStudent && (
-        <StudentDetails
-          student={selectedStudent}
-          onClose={() => setSelectedStudent(null)}
-          onUpdateStudent={handleUpdateStudent}
-        />
-      )} */}
+      {/* Add some CSS for highlighting new students */}
+      <style jsx>{`
+        .highlight-new-student {
+          animation: highlight 3s ease-out;
+        }
+        
+        @keyframes highlight {
+          0% { background-color: rgba(251, 191, 36, 0.2); }
+          100% { background-color: transparent; }
+        }
+      `}</style>
     </div>
   );
 };
