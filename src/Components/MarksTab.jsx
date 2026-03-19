@@ -328,7 +328,7 @@ const MarksTab = ({ students, onUpdateStudent }) => {
               <div className="p-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-4 flex-1">
-                    <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-800 rounded-full flex items-center justify-center flex-shrink-0">
+                    <div className="w-12 h-12 bg-gradient-to-br from-amber-600 to-amber-800 rounded-full flex items-center justify-center flex-shrink-0">
                       <span className="text-white font-bold text-lg">
                         {student.basicInfo?.name?.charAt(0) || '?'}
                       </span>
@@ -390,7 +390,7 @@ const MarksTab = ({ students, onUpdateStudent }) => {
 
                   <button
                     onClick={() => handleViewMarks(student)}
-                    className="ml-4 px-5 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 flex items-center space-x-2 transition-colors"
+                    className="p-4 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                   >
                     <Eye size={18} />
                     <span>View Marks</span>
@@ -443,7 +443,7 @@ const MarksTab = ({ students, onUpdateStudent }) => {
               </button>
             </div>
             
-            {/* <div className="p-6">
+            <div className="p-6">
               <Marks 
                 student={selectedStudent} 
                 onUpdateStudent={(updatedStudent) => {
@@ -451,7 +451,7 @@ const MarksTab = ({ students, onUpdateStudent }) => {
                   setSelectedStudent(updatedStudent);
                 }} 
               />
-            </div> */}
+            </div>
           </div>
         </div>
       )}
