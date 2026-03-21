@@ -1,6 +1,6 @@
 // src/components/dashboard/Dashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { LogOut, Users, UserPlus, List, BarChart3, Search } from 'lucide-react';
+import { LogOut, Users, UserPlus, List, BarChart3, Search, DollarSign, Award } from 'lucide-react';
 import StudentList from '../Components/StudentList';
 import AllStudents from '../Components/AllStudents';
 import AddStudent from '../Components/AddStudents';
@@ -10,6 +10,7 @@ import { auth } from '../service/firebase';
 import { useNavigate } from 'react-router-dom';
 import FeesTab from '../Components/FeesTab';
 import MarksTab from '../Components/MarksTab';
+import AssessmentTab from '../Components/AssessmentTab';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('allStudents');
@@ -211,6 +212,7 @@ const Dashboard = ({ user, onLogout }) => {
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
+                <DollarSign size={18} />
                 <span>Fees</span>
               </div>
               {activeTab === 'fees' && (
@@ -224,12 +226,27 @@ const Dashboard = ({ user, onLogout }) => {
                 : 'text-gray-500 hover:text-gray-700'}`}
             >
               <div className="flex items-center space-x-2">
+                <Award size={18} />
                 <span>Marks</span>
               </div>
               {activeTab === 'marks' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+            <button
+  onClick={() => setActiveTab('assessment')}
+  className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'assessment'
+    ? 'text-amber-600'
+    : 'text-gray-500 hover:text-gray-700'}`}
+>
+  <div className="flex items-center space-x-2">
+    <BarChart3 size={18} />
+    <span>Assessment Reports</span>
+  </div>
+  {activeTab === 'assessment' && (
+    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
+  )}
+</button>
           </nav>
         </div>
       </div>
@@ -259,7 +276,13 @@ const Dashboard = ({ user, onLogout }) => {
     students={students}
     onUpdateStudent={handleUpdateStudent}
   />
-  ) : (
+  ) :activeTab === 'assessment' ? (
+      
+     <AssessmentTab
+    students={students}
+    onUpdateStudent={handleUpdateStudent}
+  />
+  ):(
     <AllStudents
       students={students}
       onViewDetails={setSelectedStudent}

@@ -372,6 +372,167 @@ static async searchStudents(criteria = {}) {
     };
   }
 }
+
+// In StudentApi.js, add these methods:
+
+  // ────────────────────────────────────────────────
+  // Assessment Reports
+  // ────────────────────────────────────────────────
+
+  /**
+   * Get all assessments for a student
+   */
+  static async getAssessments(studentId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments`, {
+        method: 'GET',
+        headers,
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to fetch assessments');
+      }
+
+      return {
+        success: true,
+        assessments: data.assessments || { categories: [], assessments: [] }
+      };
+    } catch (error) {
+      console.error('Get assessments error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add a new assessment category
+   */
+  static async addAssessmentCategory(studentId, categoryData) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/categories`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(categoryData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to add category');
+      }
+
+      return { success: true, category: data.category };
+    } catch (error) {
+      console.error('Add category error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update an assessment category
+   */
+  static async updateAssessmentCategory(studentId, categoryId, updates) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/categories/${categoryId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Update category error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete an assessment category
+   */
+  static async deleteAssessmentCategory(studentId, categoryId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/categories/${categoryId}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Delete category error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Add an assessment record
+   */
+  static async addAssessment(studentId, assessmentData) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/records`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(assessmentData),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok || !data.success) {
+        throw new Error(data.message || 'Failed to add assessment');
+      }
+
+      return { success: true, assessment: data.assessment };
+    } catch (error) {
+      console.error('Add assessment error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Update an assessment record
+   */
+  static async updateAssessment(studentId, assessmentId, updates) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/records/${assessmentId}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updates),
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Update assessment error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete an assessment record
+   */
+  static async deleteAssessment(studentId, assessmentId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/students/${studentId}/assessments/records/${assessmentId}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      const data = await response.json();
+      return data;
+    } catch (error) {
+      console.error('Delete assessment error:', error);
+      return { success: false, error: error.message };
+    }
+  }
 }
 
 export default StudentApi;
