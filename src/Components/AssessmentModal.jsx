@@ -388,7 +388,7 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
             )}
 
             {/* Categories Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {assessments.categories.map(category => (
                 <div key={category.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   {editingCategory?.id === category.id ? (
@@ -459,15 +459,15 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
                   )}
                 </div>
               ))}
-            </div>
+            </div> */}
 
-            {assessments.categories.length === 0 && !showAddCategory && (
+            {/* {assessments.categories.length === 0 && !showAddCategory && (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <Award className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600">No assessment categories yet</p>
                 <p className="text-sm text-gray-500">Add categories to track student assessments</p>
               </div>
-            )}
+            )} */}
           </div>
 
           {/* Assessment Records Section */}
@@ -484,7 +484,7 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
             </div>
 
             {/* Add Assessment Form */}
-            {showAddAssessment && (
+            {/* {showAddAssessment && (
               <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <div>
@@ -588,7 +588,6 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
               </div>
             )}
 
-            {/* Assessments Table */}
             {assessments.assessments.length > 0 ? (
               <div className="overflow-x-auto">
                 <table className="w-full">
@@ -747,7 +746,7 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
                 <p className="text-gray-600">No assessment records yet</p>
                 <p className="text-sm text-gray-500">Add assessments to track student progress</p>
               </div>
-            )}
+            )} */}
           </div>
         </div>
       </div>

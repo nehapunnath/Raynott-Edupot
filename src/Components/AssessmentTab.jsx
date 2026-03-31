@@ -178,13 +178,13 @@ const AssessmentTab = ({ students, onUpdateStudent }) => {
                     </div>
                   </div>
 
-                  {/* <button
+                  <button
                     onClick={() => handleViewAssessments(student)}
                     className="p-4 text-gray-500 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
                   >
                     <Eye size={18} />
                     <span>View Assessments</span>
-                  </button> */}
+                  </button>
                 </div>
               </div>
             </div>
