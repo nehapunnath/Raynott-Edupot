@@ -43,23 +43,31 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
     loadAssessments();
   }, [student]);
 
-  const loadAssessments = async () => {
-    setLoading(true);
-    try {
-      const result = await StudentApi.getAssessments(student.studentId);
-      if (result.success) {
-        setAssessments(result.assessments);
-      } else {
-        toast.error(result.error || 'Failed to load assessments');
-      }
-    } catch (error) {
-      console.error('Load assessments error:', error);
-      toast.error('Failed to load assessments');
-    } finally {
-      setLoading(false);
+  // Replace the loadAssessments function with this safer version
+const loadAssessments = async () => {
+  setLoading(true);
+  try {
+    const result = await StudentApi.getAssessments(student.studentId);
+    if (result.success && result.assessments) {
+      // Ensure categories and assessments are always arrays
+      setAssessments({
+        categories: result.assessments.categories || [],
+        assessments: result.assessments.assessments || []
+      });
+    } else {
+      // Set default empty arrays if the API call fails
+      setAssessments({ categories: [], assessments: [] });
+      toast.error(result.error || 'Failed to load assessments');
     }
-  };
-
+  } catch (error) {
+    console.error('Load assessments error:', error);
+    // Set default empty arrays on error
+    setAssessments({ categories: [], assessments: [] });
+    toast.error('Failed to load assessments');
+  } finally {
+    setLoading(false);
+  }
+};
   const calculatePercentage = (score, maxScore) => {
     if (!score || !maxScore) return 0;
     return Math.round((parseFloat(score) / parseFloat(maxScore)) * 100);
@@ -388,8 +396,8 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
             )}
 
             {/* Categories Grid */}
-            {/* <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {assessments.categories.map(category => (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {assessments.categories?.map(category => (
                 <div key={category.id} className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
                   {editingCategory?.id === category.id ? (
                     <div className="space-y-3">
@@ -459,15 +467,15 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
                   )}
                 </div>
               ))}
-            </div> */}
+            </div>
 
-            {/* {assessments.categories.length === 0 && !showAddCategory && (
+            {assessments.categories.length === 0 && !showAddCategory && (
               <div className="text-center py-8 bg-gray-50 rounded-lg">
                 <Award className="w-12 h-12 text-gray-400 mx-auto mb-3" />
                 <p className="text-gray-600">No assessment categories yet</p>
                 <p className="text-sm text-gray-500">Add categories to track student assessments</p>
               </div>
-            )} */}
+            )}
           </div>
 
           {/* Assessment Records Section */}
@@ -484,7 +492,7 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
             </div>
 
             {/* Add Assessment Form */}
-            {/* {showAddAssessment && (
+            {showAddAssessment && (
               <div className="mb-6 p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
                   <div>
@@ -746,7 +754,7 @@ const AssessmentModal = ({ student, onClose, onUpdateStudent }) => {
                 <p className="text-gray-600">No assessment records yet</p>
                 <p className="text-sm text-gray-500">Add assessments to track student progress</p>
               </div>
-            )} */}
+            )}
           </div>
         </div>
       </div>

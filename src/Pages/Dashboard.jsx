@@ -13,7 +13,7 @@ import MarksTab from '../Components/MarksTab';
 import AssessmentTab from '../Components/AssessmentTab';
 
 const Dashboard = ({ user, onLogout }) => {
-  const [activeTab, setActiveTab] = useState('allStudents');
+  const [activeTab, setActiveTab] = useState('search');
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
@@ -143,8 +143,8 @@ const Dashboard = ({ user, onLogout }) => {
           </div>
           <div className="flex items-center space-x-6">
             <div className="text-right">
-              <p className="font-semibold text-lg text-white">Welcome, {user?.name}</p>
-              <p className="text-sm text-amber-200">{user?.email}</p>
+              <p className="font-semibold text-lg text-white">Welcome</p>
+              {/* <p className="text-sm text-amber-200">{user?.email}</p> */}
             </div>
             <button
               onClick={handleLogout}
