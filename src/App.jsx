@@ -12,11 +12,12 @@ import Contact from './Pages/Contact'
 import AdminDashboard from './Pages/AdminDashboard'
 import { GiToaster } from 'react-icons/gi'
 import { ToastContainer } from 'react-toastify'
+import DynamicDashboard from './Pages/DynamicDashboard'
 
 function App() {
    const location = useLocation();
 
-  const hideHeaderFooterRoutes = ['/login','/dashboard','/admin/dashboard' ];
+  const hideHeaderFooterRoutes = ['/login','/dashboard','/admin/dashboard','/dynamicdashboard' ];
 
   const shouldHide = hideHeaderFooterRoutes.includes(location.pathname);
 
@@ -30,6 +31,7 @@ function App() {
       <Route path='/features' element={<Features/>}/>
       <Route path='/contact' element={<Contact/>}/>
       <Route path='/dashboard' element={<Dashboard/>}/>
+      <Route path='/dynamicdashboard' element={<DynamicDashboard/>}/>
       <Route path='/admin/dashboard' element={<AdminDashboard/>}/>
 
 

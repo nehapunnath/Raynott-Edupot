@@ -5,13 +5,22 @@ import {
   Key, Phone, Search, Download, Trash2,
   Lock, Unlock, CheckCircle, AlertCircle,
   BarChart3, X, Copy,
-  Users,
-  Eye
+  Users, Eye, Settings, Layout
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { auth } from '../service/firebase';
 import SchoolApi from '../service/SchoolApi';  
 import { useNavigate } from 'react-router-dom';
+
+// Available tabs configuration
+const AVAILABLE_TABS = [
+  { id: 'search', name: 'Search & Filter', icon: '🔍', description: 'Search and filter students' },
+  { id: 'allStudents', name: 'All Students', icon: '📋', description: 'View all students list' },
+  { id: 'addStudent', name: 'Add New Student', icon: '➕', description: 'Add new student to system' },
+  { id: 'fees', name: 'Fees', icon: '💰', description: 'Manage student fees' },
+  { id: 'marks', name: 'Marks', icon: '🏆', description: 'Manage student marks' },
+  { id: 'assessment', name: 'Assessment Reports', icon: '📊', description: 'View assessment reports' }
+];
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [schools, setSchools] = useState([]);
@@ -22,8 +31,11 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [showCredentials, setShowCredentials] = useState(false);
   const [activeTab, setActiveTab] = useState('schools');
   const [loading, setLoading] = useState(false);
+  const [selectedSchoolForTabs, setSelectedSchoolForTabs] = useState(null);
+  const [showTabConfigModal, setShowTabConfigModal] = useState(false);
+  const [schoolTabsConfig, setSchoolTabsConfig] = useState({});
 
-  const navigate=useNavigate()
+  const navigate = useNavigate();
 
   // Load real schools from backend
   const loadSchools = async () => {
@@ -43,9 +55,32 @@ const AdminDashboard = ({ user, onLogout }) => {
       }));
       setSchools(formatted);
       setFilteredSchools(formatted);
+      
+      // Load tab configurations for all schools
+      loadAllSchoolsTabConfig(formatted);
     } else {
       toast.error(result.error || "Couldn't load schools");
     }
+  };
+
+  // Load tab configurations for all schools
+  const loadAllSchoolsTabConfig = async (schoolsList) => {
+    const configs = {};
+    for (const school of schoolsList) {
+      const config = await SchoolApi.getSchoolTabConfig(school.schoolId);
+      if (config) {
+        configs[school.schoolId] = config.enabledTabs || ['search', 'allStudents', 'addStudent'];
+      } else {
+        configs[school.schoolId] = ['search', 'allStudents', 'addStudent'];
+      }
+    }
+    setSchoolTabsConfig(configs);
+  };
+
+  // Load tab config for a single school
+  const loadSchoolTabConfig = async (schoolId) => {
+    const config = await SchoolApi.getSchoolTabConfig(schoolId);
+    return config?.enabledTabs || ['search', 'allStudents', 'addStudent'];
   };
 
   useEffect(() => {
@@ -101,16 +136,44 @@ const AdminDashboard = ({ user, onLogout }) => {
       toast.success("School created successfully!");
       setShowAddSchool(false);
 
-      // Show credentials (password visible)
+      // Get selected tabs from form
+      const selectedTabs = Array.from(e.target.querySelectorAll('input[name="tabs"]:checked'))
+        .map(checkbox => checkbox.value);
+      
+      // Save tab configuration for the new school
+      if (selectedTabs.length > 0) {
+        await SchoolApi.updateSchoolTabConfig(result.schoolId, selectedTabs);
+      }
+
+      // Show credentials
       setSelectedCredentials({
         name: newSchool.name,
         email: result.email || newSchool.email,
         password: newSchool.password,
+        isNew: true
       });
       setShowCredentials(true);
       loadSchools();
     } else {
       toast.error(result.error || "Failed to create school");
+    }
+  };
+
+  const handleUpdateSchoolTabs = async (schoolId, enabledTabs) => {
+    setLoading(true);
+    const result = await SchoolApi.updateSchoolTabConfig(schoolId, enabledTabs);
+    setLoading(false);
+
+    if (result.success) {
+      toast.success("Dashboard tabs updated successfully!");
+      setSchoolTabsConfig(prev => ({
+        ...prev,
+        [schoolId]: enabledTabs
+      }));
+      setShowTabConfigModal(false);
+      setSelectedSchoolForTabs(null);
+    } else {
+      toast.error(result.error || "Failed to update tabs");
     }
   };
 
@@ -126,6 +189,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         name: school.name,
         email: school.email,
         password: newPassword,
+        isNew: false
       });
       setShowCredentials(true);
       toast.success("Password reset successfully");
@@ -163,17 +227,170 @@ const AdminDashboard = ({ user, onLogout }) => {
       toast.error(result.error || "Delete failed");
     }
   };
+
   const handleLogout = async () => {
     try {
       await auth.signOut();
-      localStorage.removeItem('user');           // clear any stored user data
-      localStorage.removeItem('schoolId');       // if you stored this
+      localStorage.removeItem('user');
+      localStorage.removeItem('schoolId');
       toast.success("Logged out successfully");
       navigate('/login');
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Logout failed. Please try again.");
     }
+  };
+
+  // Tab Configuration Modal
+  const TabConfigModal = () => {
+    const [selectedTabs, setSelectedTabs] = useState([]);
+    const [tempSelectedTabs, setTempSelectedTabs] = useState([]);
+
+    useEffect(() => {
+      if (selectedSchoolForTabs) {
+        const currentTabs = schoolTabsConfig[selectedSchoolForTabs.schoolId] || ['search', 'allStudents', 'addStudent'];
+        setSelectedTabs(currentTabs);
+        setTempSelectedTabs(currentTabs);
+      }
+    }, [selectedSchoolForTabs]);
+
+    const toggleTab = (tabId) => {
+      if (tempSelectedTabs.includes(tabId)) {
+        if (tempSelectedTabs.length > 1) {
+          setTempSelectedTabs(tempSelectedTabs.filter(id => id !== tabId));
+        } else {
+          toast.error("At least one tab must be enabled");
+        }
+      } else {
+        setTempSelectedTabs([...tempSelectedTabs, tabId]);
+      }
+    };
+
+    const handleSave = () => {
+      if (tempSelectedTabs.length === 0) {
+        toast.error("At least one tab must be enabled");
+        return;
+      }
+      handleUpdateSchoolTabs(selectedSchoolForTabs.schoolId, tempSelectedTabs);
+    };
+
+    if (!showTabConfigModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="p-6">
+            <div className="flex justify-between items-center mb-6">
+              <div>
+                <h3 className="text-2xl font-bold text-gray-800">Customize Dashboard Tabs</h3>
+                <p className="text-gray-600">
+                  Configure which tabs appear in <strong>{selectedSchoolForTabs?.name}</strong>'s dashboard
+                </p>
+              </div>
+              <button onClick={() => setShowTabConfigModal(false)}>
+                <X size={24} className="text-gray-400 hover:text-gray-600" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 mb-4">
+                <div className="flex items-start space-x-3">
+                  <Layout size={20} className="text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-800 font-medium">Dashboard Customization</p>
+                    <p className="text-xs text-amber-700 mt-1">
+                      Select the tabs you want to appear in this school's dashboard. 
+                      The school admin will only see the tabs you enable here.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {AVAILABLE_TABS.map(tab => (
+                  <label
+                    key={tab.id}
+                    className={`flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                      tempSelectedTabs.includes(tab.id)
+                        ? 'border-amber-500 bg-amber-50'
+                        : 'border-gray-200 hover:border-amber-300 bg-white'
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={tempSelectedTabs.includes(tab.id)}
+                      onChange={() => toggleTab(tab.id)}
+                      className="mt-1 w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
+                    />
+                    <div className="ml-3 flex-1">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-xl">{tab.icon}</span>
+                        <span className="font-semibold text-gray-800">{tab.name}</span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{tab.description}</p>
+                    </div>
+                  </label>
+                ))}
+              </div>
+
+              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-700">Selected Tabs:</p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      {tempSelectedTabs.length} of {AVAILABLE_TABS.length} tabs selected
+                    </p>
+                  </div>
+                  <div className="flex space-x-2">
+                    <button
+                      onClick={() => setTempSelectedTabs(['search', 'allStudents', 'addStudent'])}
+                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100"
+                    >
+                      Reset to Default
+                    </button>
+                    <button
+                      onClick={() => setTempSelectedTabs(AVAILABLE_TABS.map(t => t.id))}
+                      className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50"
+                    >
+                      Select All
+                    </button>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {tempSelectedTabs.map(tabId => {
+                    const tab = AVAILABLE_TABS.find(t => t.id === tabId);
+                    return tab ? (
+                      <span key={tabId} className="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-800 rounded-lg text-sm">
+                        {tab.icon} {tab.name}
+                      </span>
+                    ) : null;
+                  })}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
+              <button
+                onClick={() => setShowTabConfigModal(false)}
+                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={loading}
+                className={`px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 ${
+                  loading ? 'opacity-60 cursor-not-allowed' : ''
+                }`}
+              >
+                <CheckCircle size={18} />
+                <span>{loading ? 'Saving...' : 'Save Configuration'}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -323,17 +540,16 @@ const AdminDashboard = ({ user, onLogout }) => {
 
                 <button
                   className="px-6 py-4 border border-amber-300 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center space-x-3"
-                
-                   onClick={() => {
-                     const csvContent = schools.map(s => `${s.name},${s.email},${s.phone},${s.status}`).join('\n');
+                  onClick={() => {
+                    const csvContent = schools.map(s => `${s.name},${s.email},${s.phone},${s.status}`).join('\n');
                     const blob = new Blob([csvContent], { type: 'text/csv' });
-                     const url = URL.createObjectURL(blob);
-                     const link = document.createElement('a');
-                     link.href = url;
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    link.href = url;
                     link.download = 'schools_data.csv';
                     link.click();
-                   }}
-                   >
+                  }}
+                >
                   <Download size={20} />
                   <span className="font-medium">Export Data</span>
                 </button>
@@ -363,8 +579,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                         <p className="text-sm text-gray-600">{school.email}</p>
                       </div>
                     </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                      }`}>
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                       {school.status}
                     </span>
                   </div>
@@ -435,6 +650,19 @@ const AdminDashboard = ({ user, onLogout }) => {
                         </div>
 
                         <div className="flex items-center space-x-3">
+                          {/* Customize Dashboard Button */}
+                          <button
+                            onClick={() => {
+                              setSelectedSchoolForTabs(school);
+                              setShowTabConfigModal(true);
+                            }}
+                            className="px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 flex items-center space-x-2"
+                            title="Customize Dashboard Tabs"
+                          >
+                            <Layout size={16} />
+                            <span>Customize Tabs</span>
+                          </button>
+
                           <button
                             onClick={() => {
                               setSelectedCredentials({
@@ -445,7 +673,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                                 createdAt: school.createdAt,
                                 lastLogin: school.lastLogin,
                                 schoolId: school.schoolId,
-                                // No password here — we'll show the message instead
                               });
                               setShowCredentials(true);
                             }}
@@ -462,6 +689,24 @@ const AdminDashboard = ({ user, onLogout }) => {
                             <Trash2 size={16} />
                             <span>Delete</span>
                           </button>
+                        </div>
+                      </div>
+
+                      {/* Show current tab configuration */}
+                      <div className="mb-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Settings size={14} className="text-gray-400" />
+                          <span className="text-xs text-gray-500">Dashboard Tabs:</span>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {(schoolTabsConfig[school.schoolId] || ['search', 'allStudents', 'addStudent']).map(tabId => {
+                            const tab = AVAILABLE_TABS.find(t => t.id === tabId);
+                            return tab ? (
+                              <span key={tabId} className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs">
+                                {tab.icon} {tab.name}
+                              </span>
+                            ) : null;
+                          })}
                         </div>
                       </div>
 
@@ -491,14 +736,12 @@ const AdminDashboard = ({ user, onLogout }) => {
                         <div className="p-3 bg-gray-50 rounded-lg">
                           <p className="text-sm text-gray-600">Status</p>
                           <div className="flex items-center justify-between mt-1">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
-                              }`}>
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
                               {school.status}
                             </span>
                             <button
                               onClick={() => handleToggleStatus(school)}
-                              className={`p-1 rounded ${school.status === 'active' ? 'text-red-600 hover:text-red-800 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'
-                                }`}
+                              className={`p-1 rounded ${school.status === 'active' ? 'text-red-600 hover:text-red-800 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'}`}
                               title={school.status === 'active' ? 'Deactivate' : 'Activate'}
                             >
                               {school.status === 'active' ? <Lock size={16} /> : <Unlock size={16} />}
@@ -526,7 +769,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         )}
       </div>
 
-      {/* Add School Modal */}
+      {/* Add School Modal with Tab Selection */}
       {showAddSchool && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -607,6 +850,35 @@ const AdminDashboard = ({ user, onLogout }) => {
                     </div>
                   </div>
 
+                  {/* Dashboard Tabs Configuration Section */}
+                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Layout size={20} className="text-purple-600" />
+                      <h4 className="font-semibold text-gray-800">Dashboard Tabs Configuration</h4>
+                    </div>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Select which tabs will be visible in this school's dashboard
+                    </p>
+                    <div className="grid grid-cols-2 gap-3">
+                      {AVAILABLE_TABS.map(tab => (
+                        <label key={tab.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-purple-300">
+                          <input
+                            type="checkbox"
+                            name="tabs"
+                            value={tab.id}
+                            defaultChecked={['search', 'allStudents', 'addStudent'].includes(tab.id)}
+                            className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
+                          />
+                          <span className="text-lg">{tab.icon}</span>
+                          <span className="text-sm font-medium text-gray-700">{tab.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Note: At least one tab must be selected. These can be changed later.
+                    </p>
+                  </div>
+
                   <div className="flex justify-end space-x-4">
                     <button
                       type="button"
@@ -631,6 +903,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         </div>
       )}
 
+      {/* Credentials Modal */}
       {showCredentials && selectedCredentials && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg">
@@ -666,7 +939,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                   </div>
 
                   <div className="space-y-4">
-                    {/* Email – always shown */}
                     <div>
                       <label className="text-sm text-gray-500 mb-2 block">Email Address</label>
                       <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
@@ -677,9 +949,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                       </div>
                     </div>
 
-                    {/* Password section – different for create/reset vs view info */}
                     {selectedCredentials.password ? (
-                      // This block shows only after create or reset
                       <div>
                         <label className="text-sm text-gray-500 mb-2 block">Password</label>
                         <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
@@ -695,7 +965,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                         </p>
                       </div>
                     ) : (
-                      // This block shows when user clicks "View Info"
                       <div>
                         <label className="text-sm text-gray-500 mb-2 block">Password</label>
                         <div className="p-3 bg-gray-50 rounded-lg border text-gray-700 italic">
@@ -705,7 +974,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                         </div>
                         <button
                           onClick={() => {
-                            // Close current modal and trigger reset
                             setShowCredentials(false);
                             handleResetPassword({
                               schoolId: selectedCredentials.schoolId,
@@ -720,8 +988,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                         </button>
                       </div>
                     )}
-
-                    
                   </div>
                 </div>
 
@@ -761,6 +1027,9 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         </div>
       )}
+
+      {/* Tab Configuration Modal */}
+      <TabConfigModal />
     </div>
   );
 };
