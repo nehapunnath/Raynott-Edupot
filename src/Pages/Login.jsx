@@ -31,24 +31,30 @@ const Login = () => {
   setLoading(true);
 
   const result = await AuthApi.login(formData.email.trim(), formData.password);
-
   setLoading(false);
 
   if (result.success) {
     const user = result.user;
-
     toast.success("Logged in successfully!");
 
-    // Redirect based on role
+    // Save user data
+    localStorage.setItem('user', JSON.stringify(user));
+    if (user.schoolId) localStorage.setItem('schoolId', user.schoolId);
+
     if (user.isAdmin) {
-      navigate('/admin/dashboard');           // super admin
-    } else if (user.schoolId && user.role === 'school_admin') {
-      navigate('/dashboard');                 // school admin dashboard
-      // You can also store schoolId in context/localStorage if needed
-      localStorage.setItem('schoolId', user.schoolId);
-    } else {
+      navigate('/admin/dashboard');                    // Super Admin
+    } 
+    else if (user.schoolId && user.role === 'school_admin') {
+      
+      // === MAIN DECISION LOGIC ===
+      if (user.dashboardType === 'full') {
+        navigate('/dashboard');                        // Full Dashboard
+      } else {
+        navigate('/dynamicdashboard');                 // Customized Dashboard
+      }
+    } 
+    else {
       toast.warning("Unknown user role. Contact support.");
-      // Or redirect to a generic page
       navigate('/');
     }
   } else {

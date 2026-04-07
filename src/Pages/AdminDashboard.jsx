@@ -5,22 +5,12 @@ import {
   Key, Phone, Search, Download, Trash2,
   Lock, Unlock, CheckCircle, AlertCircle,
   BarChart3, X, Copy,
-  Users, Eye, Settings, Layout
+  Users, Eye, Plus
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import { auth } from '../service/firebase';
 import SchoolApi from '../service/SchoolApi';  
 import { useNavigate } from 'react-router-dom';
-
-// Available tabs configuration
-const AVAILABLE_TABS = [
-  { id: 'search', name: 'Search & Filter', icon: '🔍', description: 'Search and filter students' },
-  { id: 'allStudents', name: 'All Students', icon: '📋', description: 'View all students list' },
-  { id: 'addStudent', name: 'Add New Student', icon: '➕', description: 'Add new student to system' },
-  { id: 'fees', name: 'Fees', icon: '💰', description: 'Manage student fees' },
-  { id: 'marks', name: 'Marks', icon: '🏆', description: 'Manage student marks' },
-  { id: 'assessment', name: 'Assessment Reports', icon: '📊', description: 'View assessment reports' }
-];
 
 const AdminDashboard = ({ user, onLogout }) => {
   const [schools, setSchools] = useState([]);
@@ -28,16 +18,15 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCredentials, setSelectedCredentials] = useState(null);
   const [showAddSchool, setShowAddSchool] = useState(false);
+  const [showAddUser, setShowAddUser] = useState(false);
+  const [selectedSchoolForUser, setSelectedSchoolForUser] = useState(null);
   const [showCredentials, setShowCredentials] = useState(false);
   const [activeTab, setActiveTab] = useState('schools');
   const [loading, setLoading] = useState(false);
-  const [selectedSchoolForTabs, setSelectedSchoolForTabs] = useState(null);
-  const [showTabConfigModal, setShowTabConfigModal] = useState(false);
-  const [schoolTabsConfig, setSchoolTabsConfig] = useState({});
 
   const navigate = useNavigate();
 
-  // Load real schools from backend
+  // Load schools
   const loadSchools = async () => {
     setLoading(true);
     const result = await SchoolApi.getAllSchools();
@@ -55,32 +44,9 @@ const AdminDashboard = ({ user, onLogout }) => {
       }));
       setSchools(formatted);
       setFilteredSchools(formatted);
-      
-      // Load tab configurations for all schools
-      loadAllSchoolsTabConfig(formatted);
     } else {
       toast.error(result.error || "Couldn't load schools");
     }
-  };
-
-  // Load tab configurations for all schools
-  const loadAllSchoolsTabConfig = async (schoolsList) => {
-    const configs = {};
-    for (const school of schoolsList) {
-      const config = await SchoolApi.getSchoolTabConfig(school.schoolId);
-      if (config) {
-        configs[school.schoolId] = config.enabledTabs || ['search', 'allStudents', 'addStudent'];
-      } else {
-        configs[school.schoolId] = ['search', 'allStudents', 'addStudent'];
-      }
-    }
-    setSchoolTabsConfig(configs);
-  };
-
-  // Load tab config for a single school
-  const loadSchoolTabConfig = async (schoolId) => {
-    const config = await SchoolApi.getSchoolTabConfig(schoolId);
-    return config?.enabledTabs || ['search', 'allStudents', 'addStudent'];
   };
 
   useEffect(() => {
@@ -112,6 +78,7 @@ const AdminDashboard = ({ user, onLogout }) => {
     toast.warning('Copied to clipboard!');
   };
 
+  // Create New School (School Admin - Full Access)
   const handleCreateSchool = async (e) => {
     e.preventDefault();
     const formData = new FormData(e.target);
@@ -121,6 +88,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       email: formData.get('email')?.trim(),
       password: formData.get('password')?.trim(),
       phone: formData.get('phone')?.trim() || undefined,
+      fullAccess: true,   // School Admin always gets full dashboard
     };
 
     if (!newSchool.name || !newSchool.email || !newSchool.password) {
@@ -134,49 +102,61 @@ const AdminDashboard = ({ user, onLogout }) => {
 
     if (result.success) {
       toast.success("School created successfully!");
-      setShowAddSchool(false);
 
-      // Get selected tabs from form
-      const selectedTabs = Array.from(e.target.querySelectorAll('input[name="tabs"]:checked'))
-        .map(checkbox => checkbox.value);
-      
-      // Save tab configuration for the new school
-      if (selectedTabs.length > 0) {
-        await SchoolApi.updateSchoolTabConfig(result.schoolId, selectedTabs);
-      }
-
-      // Show credentials
       setSelectedCredentials({
         name: newSchool.name,
         email: result.email || newSchool.email,
         password: newSchool.password,
-        isNew: true
+        isNew: true,
+        role: "School Admin (Full Access)"
       });
       setShowCredentials(true);
+      setShowAddSchool(false);
       loadSchools();
     } else {
       toast.error(result.error || "Failed to create school");
     }
   };
 
-  const handleUpdateSchoolTabs = async (schoolId, enabledTabs) => {
+  // Add Limited User (Teacher etc.)
+  const handleCreateSchoolUser = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+
+    const newUser = {
+      name: formData.get('name')?.trim(),
+      email: formData.get('email')?.trim(),
+      password: formData.get('password')?.trim(),
+      schoolId: selectedSchoolForUser.schoolId,
+      fullAccess: false,   // Limited user → /dynamicdashboard
+    };
+
+    if (!newUser.name || !newUser.email || !newUser.password) {
+      toast.error("Name, email and password are required");
+      return;
+    }
+
     setLoading(true);
-    const result = await SchoolApi.updateSchoolTabConfig(schoolId, enabledTabs);
+    const result = await SchoolApi.createSchoolUser(newUser);
     setLoading(false);
 
     if (result.success) {
-      toast.success("Dashboard tabs updated successfully!");
-      setSchoolTabsConfig(prev => ({
-        ...prev,
-        [schoolId]: enabledTabs
-      }));
-      setShowTabConfigModal(false);
-      setSelectedSchoolForTabs(null);
+      toast.success(`User "${newUser.name}" created with limited access!`);
+      setSelectedCredentials({
+        name: newUser.name,
+        email: newUser.email,
+        password: newUser.password,
+        isNew: true,
+        role: "Limited Access User"
+      });
+      setShowCredentials(true);
+      setShowAddUser(false);
     } else {
-      toast.error(result.error || "Failed to update tabs");
+      toast.error(result.error || "Failed to create user");
     }
   };
 
+  // Reset Password - Automatically generates password (No manual typing)
   const handleResetPassword = async (school) => {
     const newPassword = generatePassword();
 
@@ -189,10 +169,11 @@ const AdminDashboard = ({ user, onLogout }) => {
         name: school.name,
         email: school.email,
         password: newPassword,
-        isNew: false
+        isNew: false,
+        role: "Password Reset"
       });
       setShowCredentials(true);
-      toast.success("Password reset successfully");
+      toast.success("New password generated successfully");
     } else {
       toast.error(result.error || "Password reset failed");
     }
@@ -200,7 +181,6 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const handleToggleStatus = async (school) => {
     const newStatus = school.status === 'active' ? 'inactive' : 'active';
-
     setLoading(true);
     const result = await SchoolApi.toggleSchoolStatus(school.schoolId, newStatus);
     setLoading(false);
@@ -215,11 +195,9 @@ const AdminDashboard = ({ user, onLogout }) => {
 
   const handleDeleteSchool = async (schoolId) => {
     if (!window.confirm("Delete this school and its admin account permanently?")) return;
-
     setLoading(true);
     const result = await SchoolApi.deleteSchool(schoolId);
     setLoading(false);
-
     if (result.success) {
       toast.success("School deleted");
       loadSchools();
@@ -241,158 +219,6 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Tab Configuration Modal
-  const TabConfigModal = () => {
-    const [selectedTabs, setSelectedTabs] = useState([]);
-    const [tempSelectedTabs, setTempSelectedTabs] = useState([]);
-
-    useEffect(() => {
-      if (selectedSchoolForTabs) {
-        const currentTabs = schoolTabsConfig[selectedSchoolForTabs.schoolId] || ['search', 'allStudents', 'addStudent'];
-        setSelectedTabs(currentTabs);
-        setTempSelectedTabs(currentTabs);
-      }
-    }, [selectedSchoolForTabs]);
-
-    const toggleTab = (tabId) => {
-      if (tempSelectedTabs.includes(tabId)) {
-        if (tempSelectedTabs.length > 1) {
-          setTempSelectedTabs(tempSelectedTabs.filter(id => id !== tabId));
-        } else {
-          toast.error("At least one tab must be enabled");
-        }
-      } else {
-        setTempSelectedTabs([...tempSelectedTabs, tabId]);
-      }
-    };
-
-    const handleSave = () => {
-      if (tempSelectedTabs.length === 0) {
-        toast.error("At least one tab must be enabled");
-        return;
-      }
-      handleUpdateSchoolTabs(selectedSchoolForTabs.schoolId, tempSelectedTabs);
-    };
-
-    if (!showTabConfigModal) return null;
-
-    return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-        <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-          <div className="p-6">
-            <div className="flex justify-between items-center mb-6">
-              <div>
-                <h3 className="text-2xl font-bold text-gray-800">Customize Dashboard Tabs</h3>
-                <p className="text-gray-600">
-                  Configure which tabs appear in <strong>{selectedSchoolForTabs?.name}</strong>'s dashboard
-                </p>
-              </div>
-              <button onClick={() => setShowTabConfigModal(false)}>
-                <X size={24} className="text-gray-400 hover:text-gray-600" />
-              </button>
-            </div>
-
-            <div className="space-y-4">
-              <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 mb-4">
-                <div className="flex items-start space-x-3">
-                  <Layout size={20} className="text-amber-600 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-amber-800 font-medium">Dashboard Customization</p>
-                    <p className="text-xs text-amber-700 mt-1">
-                      Select the tabs you want to appear in this school's dashboard. 
-                      The school admin will only see the tabs you enable here.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {AVAILABLE_TABS.map(tab => (
-                  <label
-                    key={tab.id}
-                    className={`flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${
-                      tempSelectedTabs.includes(tab.id)
-                        ? 'border-amber-500 bg-amber-50'
-                        : 'border-gray-200 hover:border-amber-300 bg-white'
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={tempSelectedTabs.includes(tab.id)}
-                      onChange={() => toggleTab(tab.id)}
-                      className="mt-1 w-5 h-5 text-amber-600 rounded focus:ring-amber-500"
-                    />
-                    <div className="ml-3 flex-1">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-xl">{tab.icon}</span>
-                        <span className="font-semibold text-gray-800">{tab.name}</span>
-                      </div>
-                      <p className="text-sm text-gray-600 mt-1">{tab.description}</p>
-                    </div>
-                  </label>
-                ))}
-              </div>
-
-              <div className="bg-gray-50 rounded-xl p-4 border border-gray-200 mt-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-gray-700">Selected Tabs:</p>
-                    <p className="text-xs text-gray-500 mt-1">
-                      {tempSelectedTabs.length} of {AVAILABLE_TABS.length} tabs selected
-                    </p>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => setTempSelectedTabs(['search', 'allStudents', 'addStudent'])}
-                      className="px-3 py-1.5 text-sm border border-gray-300 rounded-lg hover:bg-gray-100"
-                    >
-                      Reset to Default
-                    </button>
-                    <button
-                      onClick={() => setTempSelectedTabs(AVAILABLE_TABS.map(t => t.id))}
-                      className="px-3 py-1.5 text-sm border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50"
-                    >
-                      Select All
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 mt-3">
-                  {tempSelectedTabs.map(tabId => {
-                    const tab = AVAILABLE_TABS.find(t => t.id === tabId);
-                    return tab ? (
-                      <span key={tabId} className="inline-flex items-center px-2 py-1 bg-amber-100 text-amber-800 rounded-lg text-sm">
-                        {tab.icon} {tab.name}
-                      </span>
-                    ) : null;
-                  })}
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-end space-x-3 mt-6 pt-6 border-t">
-              <button
-                onClick={() => setShowTabConfigModal(false)}
-                className="px-6 py-2.5 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={loading}
-                className={`px-6 py-2.5 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 ${
-                  loading ? 'opacity-60 cursor-not-allowed' : ''
-                }`}
-              >
-                <CheckCircle size={18} />
-                <span>{loading ? 'Saving...' : 'Save Configuration'}</span>
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-50 to-gray-100">
       {/* Header */}
@@ -402,23 +228,13 @@ const AdminDashboard = ({ user, onLogout }) => {
             <h1 className="text-3xl font-bold text-white">Raynott Edupot</h1>
             <p className="text-amber-100">Admin Dashboard</p>
           </div>
-          <div className="flex items-center space-x-6">
-            <div className="text-right">
-              <p className="font-semibold text-lg text-white">Welcome, Admin</p>
-            </div>
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
-                <Shield className="text-white" size={20} />
-              </div>
-              <button
-                onClick={handleLogout}
-                className="flex items-center space-x-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-300 backdrop-blur-sm text-white"
-              >
-                <LogOut size={18} />
-                <span className="font-medium">Logout</span>
-              </button>
-            </div>
-          </div>
+          <button
+            onClick={handleLogout}
+            className="flex items-center space-x-2 px-5 py-2.5 bg-white/20 hover:bg-white/30 rounded-xl transition-all duration-300 backdrop-blur-sm text-white"
+          >
+            <LogOut size={18} />
+            <span className="font-medium">Logout</span>
+          </button>
         </div>
       </header>
 
@@ -458,144 +274,13 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         )}
 
-        {/* Dashboard Tab */}
-        {activeTab === 'dashboard' && !loading && (
-          <div className="space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-gradient-to-r from-amber-50 to-amber-100 p-6 rounded-xl border border-amber-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Total Schools</p>
-                    <p className="text-3xl font-bold text-gray-800">{schools.length}</p>
-                  </div>
-                  <div className="p-3 bg-amber-200 rounded-lg">
-                    <Building2 className="text-amber-600" size={24} />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">
-                  <span className="text-green-600 font-medium">
-                    {schools.filter(s => s.status === 'active').length} active
-                  </span>
-                </p>
-              </div>
-
-              <div className="bg-gradient-to-r from-blue-50 to-blue-100 p-6 rounded-xl border border-blue-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Active Schools</p>
-                    <p className="text-3xl font-bold text-gray-800">
-                      {schools.filter(s => s.status === 'active').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-blue-200 rounded-lg">
-                    <Users className="text-blue-600" size={24} />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Currently active</p>
-              </div>
-
-              <div className="bg-gradient-to-r from-green-50 to-green-100 p-6 rounded-xl border border-green-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Inactive Schools</p>
-                    <p className="text-3xl font-bold text-gray-800">
-                      {schools.filter(s => s.status === 'inactive').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-green-200 rounded-lg">
-                    <Lock className="text-green-600" size={24} />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Deactivated accounts</p>
-              </div>
-
-              <div className="bg-gradient-to-r from-purple-50 to-purple-100 p-6 rounded-xl border border-purple-200">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-600">Recent Activity</p>
-                    <p className="text-3xl font-bold text-gray-800">
-                      {schools.filter(s => s.lastLogin !== 'Never').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-purple-200 rounded-lg">
-                    <CheckCircle className="text-purple-600" size={24} />
-                  </div>
-                </div>
-                <p className="text-xs text-gray-500 mt-2">Schools with login activity</p>
-              </div>
-            </div>
-
-            {/* Quick Actions */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Quick Actions</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => setShowAddSchool(true)}
-                  className="px-6 py-4 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-xl hover:from-amber-700 hover:to-amber-800 flex items-center justify-center space-x-3 transition-all"
-                >
-                  <UserPlus size={20} />
-                  <span className="font-medium">Add New School</span>
-                </button>
-
-                <button
-                  className="px-6 py-4 border border-amber-300 text-amber-700 rounded-xl hover:bg-amber-50 flex items-center justify-center space-x-3"
-                  onClick={() => {
-                    const csvContent = schools.map(s => `${s.name},${s.email},${s.phone},${s.status}`).join('\n');
-                    const blob = new Blob([csvContent], { type: 'text/csv' });
-                    const url = URL.createObjectURL(blob);
-                    const link = document.createElement('a');
-                    link.href = url;
-                    link.download = 'schools_data.csv';
-                    link.click();
-                  }}
-                >
-                  <Download size={20} />
-                  <span className="font-medium">Export Data</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('schools')}
-                  className="px-6 py-4 border border-gray-300 text-gray-700 rounded-xl hover:bg-gray-50 flex items-center justify-center space-x-3"
-                >
-                  <Building2 size={20} />
-                  <span className="font-medium">View All Schools</span>
-                </button>
-              </div>
-            </div>
-
-            {/* Recent Schools */}
-            <div className="bg-white rounded-xl border border-gray-200 p-6">
-              <h3 className="font-semibold text-gray-800 mb-4">Recent Schools</h3>
-              <div className="space-y-4">
-                {schools.slice(0, 3).map(school => (
-                  <div key={school.schoolId} className="flex items-center justify-between p-4 border border-gray-100 rounded-lg hover:bg-gray-50">
-                    <div className="flex items-center space-x-4">
-                      <div className="w-12 h-12 bg-amber-100 rounded-lg flex items-center justify-center">
-                        <Building2 className="text-amber-600" size={24} />
-                      </div>
-                      <div>
-                        <p className="font-medium text-gray-800">{school.name}</p>
-                        <p className="text-sm text-gray-600">{school.email}</p>
-                      </div>
-                    </div>
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${school.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'}`}>
-                      {school.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Schools Management Tab */}
         {activeTab === 'schools' && !loading && (
           <div className="space-y-6">
             <div className="flex justify-between items-center">
               <div>
                 <h2 className="text-2xl font-bold text-gray-800">School Management</h2>
-                <p className="text-gray-600">Manage school accounts and credentials</p>
+                <p className="text-gray-600">Manage schools and their users</p>
               </div>
               <button
                 onClick={() => setShowAddSchool(true)}
@@ -649,20 +334,20 @@ const AdminDashboard = ({ user, onLogout }) => {
                           </div>
                         </div>
 
-                        <div className="flex items-center space-x-3">
-                          {/* Customize Dashboard Button */}
+                        <div className="flex items-center space-x-2">
+                          {/* Add Limited User */}
                           <button
                             onClick={() => {
-                              setSelectedSchoolForTabs(school);
-                              setShowTabConfigModal(true);
+                              setSelectedSchoolForUser(school);
+                              setShowAddUser(true);
                             }}
-                            className="px-4 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 flex items-center space-x-2"
-                            title="Customize Dashboard Tabs"
+                            className="px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 flex items-center space-x-2"
                           >
-                            <Layout size={16} />
-                            <span>Customize Tabs</span>
+                            <Plus size={16} />
+                            <span>Add User</span>
                           </button>
 
+                          {/* View Info */}
                           <button
                             onClick={() => {
                               setSelectedCredentials({
@@ -682,6 +367,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                             <span>View Info</span>
                           </button>
 
+                          {/* Delete */}
                           <button
                             onClick={() => handleDeleteSchool(school.schoolId)}
                             className="px-4 py-2 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 flex items-center space-x-2"
@@ -689,24 +375,6 @@ const AdminDashboard = ({ user, onLogout }) => {
                             <Trash2 size={16} />
                             <span>Delete</span>
                           </button>
-                        </div>
-                      </div>
-
-                      {/* Show current tab configuration */}
-                      <div className="mb-4">
-                        <div className="flex items-center space-x-2 mb-2">
-                          <Settings size={14} className="text-gray-400" />
-                          <span className="text-xs text-gray-500">Dashboard Tabs:</span>
-                        </div>
-                        <div className="flex flex-wrap gap-2">
-                          {(schoolTabsConfig[school.schoolId] || ['search', 'allStudents', 'addStudent']).map(tabId => {
-                            const tab = AVAILABLE_TABS.find(t => t.id === tabId);
-                            return tab ? (
-                              <span key={tabId} className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 rounded-md text-xs">
-                                {tab.icon} {tab.name}
-                              </span>
-                            ) : null;
-                          })}
                         </div>
                       </div>
 
@@ -769,7 +437,7 @@ const AdminDashboard = ({ user, onLogout }) => {
         )}
       </div>
 
-      {/* Add School Modal with Tab Selection */}
+      {/* Add School Modal */}
       {showAddSchool && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -777,7 +445,7 @@ const AdminDashboard = ({ user, onLogout }) => {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800">Add New School</h3>
-                  <p className="text-gray-600">Create school account with login credentials</p>
+                  <p className="text-gray-600">School Admin will get Full Dashboard Access</p>
                 </div>
                 <button onClick={() => setShowAddSchool(false)}>
                   <X size={24} className="text-gray-400 hover:text-gray-600" />
@@ -791,109 +459,100 @@ const AdminDashboard = ({ user, onLogout }) => {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">School Name *</label>
-                        <input
-                          type="text"
-                          name="name"
-                          required
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="Enter school name"
-                        />
+                        <input type="text" name="name" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Enter school name" />
                       </div>
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Phone Number *</label>
-                        <input
-                          type="tel"
-                          name="phone"
-                          required
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="9876543210"
-                        />
+                        <input type="tel" name="phone" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="9876543210" />
                       </div>
                     </div>
                   </div>
 
                   <div className="bg-gradient-to-r from-blue-50 to-blue-100 rounded-xl p-6 border border-blue-200">
-                    <h4 className="font-semibold text-gray-800 mb-4">Login Credentials</h4>
+                    <h4 className="font-semibold text-gray-800 mb-4">Login Credentials (School Admin)</h4>
                     <div className="space-y-4">
                       <div>
                         <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
-                        <input
-                          type="email"
-                          name="email"
-                          required
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="admin@school.edu.in"
-                        />
+                        <input type="email" name="email" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="admin@school.edu.in" />
                       </div>
                       <div>
                         <div className="flex justify-between items-center mb-2">
                           <label className="block text-sm font-medium text-gray-700">Password *</label>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const field = document.querySelector('input[name="password"]');
-                              if (field) field.value = generatePassword();
-                            }}
-                            className="text-sm text-blue-600 hover:text-blue-800"
-                          >
+                          <button type="button" onClick={() => {
+                            const field = document.querySelector('input[name="password"]');
+                            if (field) field.value = generatePassword();
+                          }} className="text-sm text-blue-600 hover:text-blue-800">
                             Generate Password
                           </button>
                         </div>
-                        <input
-                          type="text"
-                          name="password"
-                          required
-                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                          placeholder="Create a strong password"
-                        />
+                        <input type="text" name="password" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Create a strong password" />
                       </div>
                     </div>
                   </div>
 
-                  {/* Dashboard Tabs Configuration Section */}
-                  <div className="bg-gradient-to-r from-purple-50 to-purple-100 rounded-xl p-6 border border-purple-200">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Layout size={20} className="text-purple-600" />
-                      <h4 className="font-semibold text-gray-800">Dashboard Tabs Configuration</h4>
+                  <div className="flex justify-end space-x-4">
+                    <button type="button" onClick={() => setShowAddSchool(false)} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
+                      Cancel
+                    </button>
+                    <button type="submit" disabled={loading} className={`px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}>
+                      <CheckCircle size={20} />
+                      <span>{loading ? 'Creating...' : 'Create School Account'}</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Add Limited User Modal */}
+      {showAddUser && selectedSchoolForUser && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex justify-between items-center mb-6">
+                <div>
+                  <h3 className="text-2xl font-bold text-gray-800">Add User to {selectedSchoolForUser.name}</h3>
+                  <p className="text-gray-600">This user will have limited tabs (redirect to Dynamic Dashboard)</p>
+                </div>
+                <button onClick={() => setShowAddUser(false)}>
+                  <X size={24} className="text-gray-400 hover:text-gray-600" />
+                </button>
+              </div>
+
+              <form onSubmit={handleCreateSchoolUser}>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">User Name *</label>
+                    <input type="text" name="name" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g. Ramesh Teacher" />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
+                    <input type="email" name="email" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="teacher@school.edu.in" />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between items-center mb-2">
+                      <label className="block text-sm font-medium text-gray-700">Password *</label>
+                      <button type="button" onClick={() => {
+                        const field = document.querySelector('input[name="password"]');
+                        if (field) field.value = generatePassword();
+                      }} className="text-sm text-blue-600 hover:text-blue-800">
+                        Generate Password
+                      </button>
                     </div>
-                    <p className="text-sm text-gray-600 mb-4">
-                      Select which tabs will be visible in this school's dashboard
-                    </p>
-                    <div className="grid grid-cols-2 gap-3">
-                      {AVAILABLE_TABS.map(tab => (
-                        <label key={tab.id} className="flex items-center space-x-3 p-3 bg-white rounded-lg border border-gray-200 cursor-pointer hover:border-purple-300">
-                          <input
-                            type="checkbox"
-                            name="tabs"
-                            value={tab.id}
-                            defaultChecked={['search', 'allStudents', 'addStudent'].includes(tab.id)}
-                            className="w-4 h-4 text-purple-600 rounded focus:ring-purple-500"
-                          />
-                          <span className="text-lg">{tab.icon}</span>
-                          <span className="text-sm font-medium text-gray-700">{tab.name}</span>
-                        </label>
-                      ))}
-                    </div>
-                    <p className="text-xs text-gray-500 mt-3">
-                      Note: At least one tab must be selected. These can be changed later.
-                    </p>
+                    <input type="text" name="password" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Strong password" />
                   </div>
 
                   <div className="flex justify-end space-x-4">
-                    <button
-                      type="button"
-                      onClick={() => setShowAddSchool(false)}
-                      className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50"
-                    >
+                    <button type="button" onClick={() => setShowAddUser(false)} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
                       Cancel
                     </button>
-                    <button
-                      type="submit"
-                      disabled={loading}
-                      className={`px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}
-                    >
+                    <button type="submit" disabled={loading} className={`px-6 py-3 bg-gradient-to-r from-amber-600 to-amber-700 text-white rounded-lg font-medium hover:from-amber-700 hover:to-amber-800 flex items-center space-x-2 ${loading ? 'opacity-60 cursor-not-allowed' : ''}`}>
                       <CheckCircle size={20} />
-                      <span>{loading ? 'Creating...' : 'Create School Account'}</span>
+                      <span>{loading ? 'Creating...' : 'Create User'}</span>
                     </button>
                   </div>
                 </div>
@@ -911,20 +570,13 @@ const AdminDashboard = ({ user, onLogout }) => {
               <div className="flex justify-between items-center mb-6">
                 <div>
                   <h3 className="text-2xl font-bold text-gray-800">
-                    {selectedCredentials.isNew ? "New Login Credentials" : "School Account Info"}
+                    {selectedCredentials.role || (selectedCredentials.isNew ? "New Login Credentials" : "Account Info")}
                   </h3>
                   <p className="text-gray-600">
-                    {selectedCredentials.isNew
-                      ? "Provide these credentials to the school"
-                      : "School admin login details"}
+                    {selectedCredentials.isNew ? "Provide these credentials to the user" : "Account details"}
                   </p>
                 </div>
-                <button
-                  onClick={() => {
-                    setShowCredentials(false);
-                    setSelectedCredentials(null);
-                  }}
-                >
+                <button onClick={() => { setShowCredentials(false); setSelectedCredentials(null); }}>
                   <X size={24} className="text-gray-400 hover:text-gray-600" />
                 </button>
               </div>
@@ -949,7 +601,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                       </div>
                     </div>
 
-                    {selectedCredentials.password ? (
+                    {selectedCredentials.password && (
                       <div>
                         <label className="text-sm text-gray-500 mb-2 block">Password</label>
                         <div className="flex items-center justify-between p-3 bg-white rounded-lg border">
@@ -960,32 +612,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                             <Copy size={16} />
                           </button>
                         </div>
-                        <p className="text-xs text-amber-700 mt-1">
-                          Copy this securely — it will not be shown again
-                        </p>
-                      </div>
-                    ) : (
-                      <div>
-                        <label className="text-sm text-gray-500 mb-2 block">Password</label>
-                        <div className="p-3 bg-gray-50 rounded-lg border text-gray-700 italic">
-                          Password is shown only once after creation or reset.
-                          <br />
-                          If you need access, please use the <strong>Reset Password</strong> button.
-                        </div>
-                        <button
-                          onClick={() => {
-                            setShowCredentials(false);
-                            handleResetPassword({
-                              schoolId: selectedCredentials.schoolId,
-                              name: selectedCredentials.name,
-                              email: selectedCredentials.email
-                            });
-                          }}
-                          className="mt-3 px-4 py-2 bg-amber-600 text-white text-sm rounded hover:bg-amber-700 flex items-center space-x-2"
-                        >
-                          <Key size={16} />
-                          <span>Reset Password Now</span>
-                        </button>
+                        <p className="text-xs text-amber-700 mt-1">Copy this securely — it will not be shown again</p>
                       </div>
                     )}
                   </div>
@@ -1005,7 +632,7 @@ const AdminDashboard = ({ user, onLogout }) => {
                 <div className="flex justify-end space-x-3">
                   <button
                     onClick={() => {
-                      const content = `School: ${selectedCredentials.name}\nEmail: ${selectedCredentials.email}\nPassword: ${selectedCredentials.password}`;
+                      const content = `Name: ${selectedCredentials.name}\nEmail: ${selectedCredentials.email}\nPassword: ${selectedCredentials.password}`;
                       copyToClipboard(content);
                     }}
                     className="px-4 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50"
@@ -1027,9 +654,6 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         </div>
       )}
-
-      {/* Tab Configuration Modal */}
-      <TabConfigModal />
     </div>
   );
 };
