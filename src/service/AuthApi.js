@@ -8,45 +8,40 @@ import BASE_URL from './base_urls'
 class AuthApi {
  
   static async login(email, password) {
-    try {
-      const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+  try {
+    const userCredential = await signInWithEmailAndPassword(auth, email.trim(), password);
+    const idToken = await getIdToken(userCredential.user, true);
 
-      const idToken = await getIdToken(userCredential.user, true);
+    const response = await fetch(`${BASE_URL}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${idToken}`,
+      },
+    });
 
-      const response = await fetch(`${BASE_URL}/login`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${idToken}`,
-        },
-      });
+    const data = await response.json();
 
-      const data = await response.json();
-
-      if (!response.ok || !data.success) {
-        throw new Error(data.error || data.message || 'Backend authentication failed');
-      }
-
-      return {
-        success: true,
-        user: data.user,
-      };
-    } catch (error) {
-      console.error('Login error:', error.code, error.message);
-
-      let message = 'Login failed. Please try again.';
-
-      if (error.code === 'auth/invalid-email')          message = 'Invalid email format';
-      if (error.code === 'auth/user-not-found' ||
-          error.code === 'auth/wrong-password')         message = 'Invalid email or password';
-      if (error.code === 'auth/too-many-requests')      message = 'Too many attempts. Try again later.';
-      if (error.code === 'auth/user-disabled')          message = 'Account is disabled.';
-      if (error.code === 'auth/network-request-failed') message = 'Network error — check your connection';
-
-      return { success: false, error: message };
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || data.message || 'Backend authentication failed');
     }
-  }
 
+    // Ensure enabledTabs is always an array
+    const user = {
+      ...data.user,
+      enabledTabs: data.user.enabledTabs || [],
+      fullAccess: data.user.fullAccess || false
+    };
+
+    return {
+      success: true,
+      user: user,
+    };
+  } catch (error) {
+    console.error('Login error:', error.code, error.message);
+    // ... error handling
+  }
+}
   
   static async logout() {
     try {

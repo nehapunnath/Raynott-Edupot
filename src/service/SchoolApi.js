@@ -156,6 +156,195 @@ class SchoolApi {
       return { success: false, error: error.message };
     }
   }
+
+static async createSchoolUser(userData) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/schools/${userData.schoolId}/users`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({
+          name: userData.name,
+          email: userData.email,
+          password: userData.password,
+        }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || data.message || 'Failed to create user');
+      }
+
+      return { success: true, ...data };
+    } catch (error) {
+      console.error('Create school user error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get all users of a specific school
+   */
+  // In SchoolApi.js - Update getSchoolUsers method
+static async getSchoolUsers(schoolId) {
+  try {
+    const headers = await this.getAuthHeader();
+    const response = await fetch(`${BASE_URL}/schools/${schoolId}/users`, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to fetch users');
+    }
+
+    // Filter out school_admin on client side as well for safety
+    const regularUsers = (data.users || []).filter(user => user.role !== 'school_admin');
+    
+    return { success: true, users: regularUsers };
+  } catch (error) {
+    console.error('Get school users error:', error);
+    return { success: false, error: error.message };
+  }
+}
+  /**
+   * Update a school user (name, fullAccess, etc.)
+   */
+  static async updateSchoolUser(uid, updateData) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/schools/users/${uid}`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify(updateData),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update user');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update school user error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Delete a school user
+   */
+  static async deleteSchoolUser(uid) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/schools/users/${uid}`, {
+        method: 'DELETE',
+        headers,
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Delete school user error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  // ====================== TAB CONFIGURATION ======================
+
+  /**
+   * Update tab configuration for a school
+   */
+  static async updateSchoolTabConfig(schoolId, enabledTabs) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/schools/${schoolId}/tab-config`, {
+        method: 'PATCH',
+        headers,
+        body: JSON.stringify({ enabledTabs }),
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to update tab config');
+      }
+
+      return { success: true };
+    } catch (error) {
+      console.error('Update tab config error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
+   * Get tab configuration for a school
+   */
+  static async getSchoolTabConfig(schoolId) {
+    try {
+      const headers = await this.getAuthHeader();
+      const response = await fetch(`${BASE_URL}/schools/${schoolId}/tab-config`, {
+        method: 'GET',
+        headers,
+      });
+
+      const data = await response.json();
+      if (!response.ok || !data.success) {
+        throw new Error(data.error || 'Failed to fetch tab config');
+      }
+
+      return { success: true, enabledTabs: data.enabledTabs || [] };
+    } catch (error) {
+      console.error('Get tab config error:', error);
+      return { success: false, error: error.message };
+    }
+  }
+  // Add to SchoolApi.js
+static async resetSchoolUserPassword(uid, newPassword) {
+  try {
+    const headers = await this.getAuthHeader();
+    const response = await fetch(`${BASE_URL}/schools/users/${uid}/reset-password`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ newPassword }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.message || 'Password reset failed');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Reset user password error:', error);
+    return { success: false, error: error.message };
+  }
+}
+// Add to SchoolApi.js
+static async updateUserTabConfig(uid, enabledTabs) {
+  try {
+    const headers = await this.getAuthHeader();
+    const response = await fetch(`${BASE_URL}/schools/users/${uid}/tab-config`, {
+      method: 'PATCH',
+      headers,
+      body: JSON.stringify({ enabledTabs }),
+    });
+
+    const data = await response.json();
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to update user tab config');
+    }
+
+    return { success: true };
+  } catch (error) {
+    console.error('Update user tab config error:', error);
+    return { success: false, error: error.message };
+  }
+}
 }
 
 export default SchoolApi;

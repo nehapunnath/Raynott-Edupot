@@ -15,14 +15,14 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const navigate=useNavigate()
+  const navigate = useNavigate();
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value,
     });
-    setError(''); // clear error when typing
+    setError('');
   };
 
   const handleSubmit = async (e) => {
@@ -41,16 +41,20 @@ const Login = () => {
     localStorage.setItem('user', JSON.stringify(user));
     if (user.schoolId) localStorage.setItem('schoolId', user.schoolId);
 
+    // Redirect logic based on role and permissions
     if (user.isAdmin) {
-      navigate('/admin/dashboard');                    // Super Admin
+      // Super Admin
+      navigate('/admin/dashboard');
     } 
-    else if (user.schoolId && user.role === 'school_admin') {
-      
-      // === MAIN DECISION LOGIC ===
-      if (user.dashboardType === 'full') {
-        navigate('/dashboard');                        // Full Dashboard
+    else if (user.schoolId) {
+      // School user (admin or regular)
+      // Check if user has custom tabs configuration
+      if (user.enabledTabs && user.enabledTabs.length > 0) {
+        // User has custom tabs - go to dynamic dashboard
+        navigate('/dynamicdashboard');
       } else {
-        navigate('/dynamicdashboard');                 // Customized Dashboard
+        // User has full access or no custom tabs - go to full dashboard
+        navigate('/dashboard');
       }
     } 
     else {
@@ -62,7 +66,7 @@ const Login = () => {
   }
 };
 
- const handleBackToHome = () => {
+  const handleBackToHome = () => {
     navigate('/');
   };
 
@@ -72,10 +76,10 @@ const Login = () => {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="w-full max-w-6xl bg-gradient-to-br from-white to-amber-50 rounded-3xl shadow-2xl overflow-hidden border border-amber-200"
+        className="w-full max-w-6xl bg-gradient-to-br from-white to-amber-50 rounded-3xl shadow-2xl overflow-hidden border border-amber-200 relative"
       >
         <div className="flex flex-col lg:flex-row">
-          {/* Brand Section - unchanged */}
+          {/* Brand Section */}
           <div className="lg:w-2/5 bg-gradient-to-br from-amber-800 via-amber-700 to-amber-600 p-8 md:p-12 text-white flex flex-col justify-center relative overflow-hidden">
             <div className="relative mb-8">
               <div className="flex items-center space-x-4 mb-6">
@@ -126,9 +130,9 @@ const Login = () => {
 
           {/* Login Form Section */}
           <div className="lg:w-3/5 p-8 md:p-12 flex flex-col justify-center">
-           <button
+            <button
               onClick={handleBackToHome}
-              className="absolute top-6 left-6 flex items-center space-x-2 text-amber-600 hover:text-amber-600 transition-colors group"
+              className="absolute top-6 left-6 flex items-center space-x-2 text-amber-600 hover:text-amber-600 transition-colors group lg:left-auto lg:right-6"
             >
               <div className="p-2 rounded-lg bg-gray-100 group-hover:bg-amber-50 transition-colors">
                 <ArrowLeft size={20} className="group-hover:-translate-x-0.5 transition-transform" />
@@ -137,7 +141,7 @@ const Login = () => {
             </button>
             <div className="max-w-md mx-auto w-full">
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-bold text-gray-800">Welcome</h2>
+                <h2 className="text-3xl font-bold text-gray-800">Welcome Back</h2>
                 <p className="text-gray-600 mt-2">Sign in to access your school dashboard</p>
               </div>
 
@@ -200,6 +204,11 @@ const Login = () => {
                 </button>
               </form>
 
+              <div className="mt-6 text-center">
+                <p className="text-sm text-gray-500">
+                  Secure login with Firebase Authentication
+                </p>
+              </div>
             </div>
           </div>
         </div>
