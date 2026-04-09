@@ -771,12 +771,12 @@ const handleCustomizeUserTabs = (user, school) => {
                 <div className="space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">User Name *</label>
-                    <input type="text" name="name" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="e.g., Ramesh Teacher" />
+                    <input type="text" name="name" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"  />
                   </div>
 
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">Email Address *</label>
-                    <input type="email" name="email" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="teacher@school.edu.in" />
+                    <input type="email" name="email" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"  />
                   </div>
 
                   <div>
