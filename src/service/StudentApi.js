@@ -373,7 +373,6 @@ static async searchStudents(criteria = {}) {
   }
 }
 
-// In StudentApi.js, add these methods:
 
   // ────────────────────────────────────────────────
   // Assessment Reports
@@ -533,6 +532,31 @@ static async searchStudents(criteria = {}) {
       return { success: false, error: error.message };
     }
   }
+
+  // Add this to StudentApi.js if needed
+static async getStudentsBySchool(schoolId) {
+  try {
+    const headers = await this.getAuthHeader();
+    const response = await fetch(`${BASE_URL}/students?schoolId=${schoolId}`, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || !data.success) {
+      throw new Error(data.error || 'Failed to load students');
+    }
+
+    return {
+      success: true,
+      students: data.students || [],
+    };
+  } catch (error) {
+    console.error('Get students by school error:', error);
+    return { success: false, error: error.message || 'Could not fetch students' };
+  }
+}
 }
 
 export default StudentApi;

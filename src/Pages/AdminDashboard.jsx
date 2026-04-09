@@ -37,6 +37,7 @@ const AdminDashboard = ({ user, onLogout }) => {
   const [loading, setLoading] = useState(false);
   const [expandedSchools, setExpandedSchools] = useState({});
   const [schoolUsers, setSchoolUsers] = useState({});
+  const [tempSelectedTabs, setTempSelectedTabs] = useState([]);
 
   const navigate = useNavigate();
 
@@ -66,6 +67,14 @@ const AdminDashboard = ({ user, onLogout }) => {
     } else {
       toast.error(result.error || "Couldn't load schools");
     }
+  };
+
+    const handleTabToggle = (tabId) => {
+    setTempSelectedTabs(prev => 
+      prev.includes(tabId) 
+        ? prev.filter(id => id !== tabId)
+        : [...prev, tabId]
+    );
   };
 
   const loadSchoolUsers = async (schoolId) => {
@@ -269,11 +278,11 @@ const AdminDashboard = ({ user, onLogout }) => {
     }
   };
 
-  // Customize Tabs for a User
-  const handleCustomizeUserTabs = (user, school) => {
-    setSelectedUserForTabs({ user, school });
-    setShowTabConfig(true);
-  };
+const handleCustomizeUserTabs = (user, school) => {
+  setSelectedUserForTabs({ user, school });
+  setTempSelectedTabs(user.enabledTabs || []); // ← This line is critical
+  setShowTabConfig(true);
+};
 
   const toggleSchoolExpand = (schoolId) => {
     setExpandedSchools(prev => ({
@@ -292,6 +301,28 @@ const AdminDashboard = ({ user, onLogout }) => {
     } catch (error) {
       console.error("Logout error:", error);
       toast.error("Logout failed. Please try again.");
+    }
+  };
+
+   const saveUserTabConfig = async () => {
+    if (!selectedUserForTabs) return;
+    
+    const result = await SchoolApi.updateUserTabConfig(
+      selectedUserForTabs.user.uid, 
+      tempSelectedTabs
+    );
+    
+    if (result.success) {
+      toast.success(`Tab configuration updated for ${selectedUserForTabs.user.name}`);
+      setShowTabConfig(false);
+      setSelectedUserForTabs(null);
+      setTempSelectedTabs([]);
+      // Reload users to reflect changes
+      if (selectedUserForTabs.school) {
+        loadSchoolUsers(selectedUserForTabs.school.schoolId);
+      }
+    } else {
+      toast.error(result.error || "Failed to update tab configuration");
     }
   };
 
@@ -505,10 +536,10 @@ const AdminDashboard = ({ user, onLogout }) => {
                             </span>
                             <button
                               onClick={() => handleToggleStatus(school)}
-                              className={`p-1 rounded transition-colors ${school.status === 'active' ? 'text-red-600 hover:text-red-800 hover:bg-red-50' : 'text-green-600 hover:text-green-800 hover:bg-green-50'}`}
+                              className={`p-1 rounded transition-colors ${school.status === 'active' ?  'text-green-600 hover:text-green-800 hover:bg-green-50' : 'text-red-600 hover:text-red-800 hover:bg-red-50' }`}
                               title={school.status === 'active' ? 'Deactivate School' : 'Activate School'}
                             >
-                              {school.status === 'active' ? <Lock size={16} /> : <Unlock size={16} />}
+                              {school.status === 'active' ? <Unlock size={16} /> : <Lock size={16} />}
                             </button>
                           </div>
                         </div>
@@ -760,6 +791,45 @@ const AdminDashboard = ({ user, onLogout }) => {
                     </div>
                     <input type="text" name="password" required className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent" placeholder="Strong password" />
                   </div>
+                  <div className="bg-blue-50 rounded-xl p-4 border border-blue-200">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
+                          <Settings size={16} className="text-blue-600" />
+                        </div>
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-blue-800 text-sm">Tab Access Configuration</h4>
+                        <p className="text-sm text-blue-700 mt-1">
+                          After creating the user, click on the <strong>"Tabs"</strong> button next to the user's name 
+                          to customize which dashboard tabs they can access. By default, new users will have no tabs enabled.
+                        </p>
+                        <div className="mt-2 flex items-center gap-2 text-xs text-blue-600">
+                          <span className="bg-blue-100 px-2 py-1 rounded">1. Create User</span>
+                          <span>→</span>
+                          <span className="bg-blue-100 px-2 py-1 rounded">2. Find user in list</span>
+                          <span>→</span>
+                          <span className="bg-blue-100 px-2 py-1 rounded">3. Click "Tabs" button</span>
+                          <span>→</span>
+                          <span className="bg-blue-100 px-2 py-1 rounded">4. Select allowed tabs</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="bg-amber-50 rounded-xl p-4 border border-amber-200">
+                    <div className="flex items-start space-x-3">
+                      <div className="flex-shrink-0">
+                        <AlertCircle size={18} className="text-amber-600 mt-0.5" />
+                      </div>
+                      <div>
+                        <p className="text-sm text-amber-700">
+                          <strong>Note:</strong> Users will not see any dashboard tabs until you configure their access 
+                          using the <strong>"Tabs"</strong> button. Make sure to set up their tab permissions after creation.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="flex justify-end space-x-4">
                     <button type="button" onClick={() => setShowAddUser(false)} className="px-6 py-3 border border-gray-300 text-gray-700 rounded-lg font-medium hover:bg-gray-50">
@@ -778,7 +848,7 @@ const AdminDashboard = ({ user, onLogout }) => {
       )}
 
       {/* User Tab Configuration Modal */}
-      {showTabConfig && selectedUserForTabs && (
+       {showTabConfig && selectedUserForTabs && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
             <div className="p-6">
@@ -788,53 +858,72 @@ const AdminDashboard = ({ user, onLogout }) => {
                   <p className="text-gray-600">School: {selectedUserForTabs.school.name}</p>
                   <p className="text-sm text-gray-500 mt-1">Select which tabs this user can access</p>
                 </div>
-                <button onClick={() => setShowTabConfig(false)} className="hover:bg-gray-100 p-1 rounded">
+                <button onClick={() => {
+                  setShowTabConfig(false);
+                  setSelectedUserForTabs(null);
+                  setTempSelectedTabs([]);
+                }} className="hover:bg-gray-100 p-1 rounded">
                   <X size={24} className="text-gray-400 hover:text-gray-600" />
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {AVAILABLE_TABS.map(tab => (
-                  <label key={tab.id} className="flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all border-gray-200 hover:border-amber-300">
-                    <input 
-                      type="checkbox" 
-                      className="mt-1 w-5 h-5 text-amber-600 rounded"
-                      defaultChecked={selectedUserForTabs.user.enabledTabs?.includes(tab.id)}
-                    />
-                    <div className="ml-3">
-                      <div className="font-semibold">{tab.icon} {tab.name}</div>
-                      <p className="text-sm text-gray-600">{tab.description}</p>
-                    </div>
-                  </label>
-                ))}
+              <div className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {AVAILABLE_TABS.map(tab => (
+                    <label 
+                      key={tab.id} 
+                      className={`flex items-start p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                        tempSelectedTabs.includes(tab.id)
+                          ? 'border-amber-500 bg-amber-50'
+                          : 'border-gray-200 hover:border-amber-300'
+                      }`}
+                      onClick={() => handleTabToggle(tab.id)}
+                    >
+                      <input 
+                        type="checkbox" 
+                        className="mt-1 w-5 h-5 text-amber-600 rounded cursor-pointer"
+                        checked={tempSelectedTabs.includes(tab.id)}
+                        onChange={() => {}} // Handled by onClick on label
+                      />
+                      <div className="ml-3">
+                        <div className="font-semibold">
+                          <span className="mr-2">{tab.icon}</span>
+                          {tab.name}
+                        </div>
+                        <p className="text-sm text-gray-600">{tab.description}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+                
+                {/* Selection summary */}
+                <div className="mt-4 p-4 bg-gray-50 rounded-lg">
+                  <p className="text-sm text-gray-600">
+                    <strong className="text-amber-600">{tempSelectedTabs.length}</strong> of {AVAILABLE_TABS.length} tabs selected
+                  </p>
+                  {tempSelectedTabs.length === 0 && (
+                    <p className="text-sm text-red-500 mt-1">
+                      ⚠️ User won't be able to access any dashboard features
+                    </p>
+                  )}
+                </div>
               </div>
 
               <div className="flex justify-end gap-3 mt-8">
-                <button onClick={() => setShowTabConfig(false)} className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50">
+                <button 
+                  onClick={() => {
+                    setShowTabConfig(false);
+                    setSelectedUserForTabs(null);
+                    setTempSelectedTabs([]);
+                  }} 
+                  className="px-6 py-2.5 border border-gray-300 rounded-lg hover:bg-gray-50"
+                >
                   Cancel
                 </button>
-                <button onClick={async () => {
-                  // Get all checked tabs
-                  const checkboxes = document.querySelectorAll('input[type="checkbox"]');
-                  const enabledTabs = Array.from(checkboxes)
-                    .filter(cb => cb.checked)
-                    .map((cb, index) => AVAILABLE_TABS[index].id);
-                  
-                  // Save configuration for this user
-                  const result = await SchoolApi.updateUserTabConfig(
-                    selectedUserForTabs.user.uid, 
-                    enabledTabs
-                  );
-                  
-                  if (result.success) {
-                    toast.success(`Tab configuration updated for ${selectedUserForTabs.user.name}`);
-                    setShowTabConfig(false);
-                    // Reload users to reflect changes
-                    loadSchoolUsers(selectedUserForTabs.school.schoolId);
-                  } else {
-                    toast.error(result.error || "Failed to update tab configuration");
-                  }
-                }} className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700">
+                <button 
+                  onClick={saveUserTabConfig} 
+                  className="px-6 py-2.5 bg-amber-600 text-white rounded-lg hover:bg-amber-700"
+                >
                   Save Configuration
                 </button>
               </div>
@@ -842,7 +931,6 @@ const AdminDashboard = ({ user, onLogout }) => {
           </div>
         </div>
       )}
-
       {/* Credentials Modal */}
       {showCredentials && selectedCredentials && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">

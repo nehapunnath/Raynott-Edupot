@@ -204,11 +204,7 @@ const Login = () => {
                 </button>
               </form>
 
-              {/* <div className="mt-6 text-center">
-                <p className="text-sm text-gray-500">
-                  Secure login with Firebase Authentication
-                </p>
-              </div> */}
+              
             </div>
           </div>
         </div>

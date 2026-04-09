@@ -1,6 +1,6 @@
 // src/services/SchoolApi.js
-import { auth } from './firebase';           // your firebase config
-import BASE_URL from './base_urls';          // your backend base (e.g. http://localhost:5000/api or production URL)
+import { auth } from './firebase';           
+import BASE_URL from './base_urls';          
 
 class SchoolApi {
   static async getAuthHeader() {
@@ -12,6 +12,26 @@ class SchoolApi {
       'Content-Type': 'application/json',
     };
   }
+
+  static async getUserProfile(uid) {
+  try {
+    const headers = await this.getAuthHeader();
+    const response = await fetch(`${BASE_URL}/users/${uid}/profile`, {
+      method: 'GET',
+      headers,
+    });
+
+    const data = await response.json();
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to fetch user profile');
+    }
+
+    return { success: true, profile: data };
+  } catch (error) {
+    console.error('Get user profile error:', error);
+    return { success: false, error: error.message };
+  }
+}
 
   /**
    * Fetch all schools (only visible to super admin)
@@ -304,6 +324,7 @@ static async getSchoolUsers(schoolId) {
     }
   }
   // Add to SchoolApi.js
+// In SchoolApi.js - Fix this method
 static async resetSchoolUserPassword(uid, newPassword) {
   try {
     const headers = await this.getAuthHeader();
@@ -314,11 +335,19 @@ static async resetSchoolUserPassword(uid, newPassword) {
     });
 
     const data = await response.json();
-    if (!response.ok || !data.success) {
+    
+    // Check if response is ok
+    if (!response.ok) {
+      // Extract error message from response
+      const errorMessage = data.message || data.error || 'Password reset failed';
+      throw new Error(errorMessage);
+    }
+    
+    if (!data.success) {
       throw new Error(data.message || 'Password reset failed');
     }
 
-    return { success: true };
+    return { success: true, message: data.message };
   } catch (error) {
     console.error('Reset user password error:', error);
     return { success: false, error: error.message };

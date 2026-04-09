@@ -61,19 +61,19 @@ const Dashboard = ({ user, onLogout }) => {
   const handleAddStudent = async (newStudentData) => {
     try {
       console.log('Adding student with data:', newStudentData);
-      
+
       const result = await StudentApi.createStudent(newStudentData);
       console.log('API response:', result);
-      
+
       if (result.success) {
         toast.success('Student added successfully!');
-        
+
         // Switch to all students tab
         setActiveTab('allStudents');
-        
+
         // Refresh immediately without delay
         await refreshStudents();
-        
+
         // Optionally scroll to the newly added student
         setTimeout(() => {
           const newStudentElement = document.getElementById(`student-${result.studentId}`);
@@ -85,7 +85,7 @@ const Dashboard = ({ user, onLogout }) => {
             }, 3000);
           }
         }, 100);
-        
+
       } else {
         toast.error('Failed to add student: ' + (result.error || 'Unknown error'));
       }
@@ -234,65 +234,65 @@ const Dashboard = ({ user, onLogout }) => {
               )}
             </button>
             <button
-  onClick={() => setActiveTab('assessment')}
-  className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'assessment'
-    ? 'text-amber-600'
-    : 'text-gray-500 hover:text-gray-700'}`}
->
-  <div className="flex items-center space-x-2">
-    <BarChart3 size={18} />
-    <span>Assessment Reports</span>
-  </div>
-  {activeTab === 'assessment' && (
-    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
-  )}
-</button>
+              onClick={() => setActiveTab('assessment')}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'assessment'
+                ? 'text-amber-600'
+                : 'text-gray-500 hover:text-gray-700'}`}
+            >
+              <div className="flex items-center space-x-2">
+                <BarChart3 size={18} />
+                <span>Assessment Reports</span>
+              </div>
+              {activeTab === 'assessment' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
+              )}
+            </button>
           </nav>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="p-6">
-  {activeTab === 'addStudent' ? (
-    <AddStudent
-      onAddStudent={handleAddStudent}
-      onCancel={() => setActiveTab('allStudents')}
-    />
-  ) : activeTab === 'search' ? (
-    <StudentList
-      students={filteredStudents}
-      onSelectStudent={setSelectedStudent}
-      onDeleteStudent={handleDeleteStudent}
-      onAddNew={() => setActiveTab('addStudent')}
-    />
-  ) : activeTab === 'fees' ? (
-    <FeesTab
-      students={students}
-      onUpdateStudent={handleUpdateStudent}
-    />
-  ) : activeTab === 'marks' ? (
-      
-     <MarksTab
-    students={students}
-    onUpdateStudent={handleUpdateStudent}
-  />
-  ) :activeTab === 'assessment' ? (
-      
-     <AssessmentTab
-    students={students}
-    onUpdateStudent={handleUpdateStudent}
-  />
-  ):(
-    <AllStudents
-      students={students}
-      onViewDetails={setSelectedStudent}
-      onDelete={handleDeleteStudent}
-      onUpdateStudent={handleUpdateStudent}
-      onRefresh={refreshStudents}
-      isLoading={isLoading}
-    />
-  )}
-</div>
+        {activeTab === 'addStudent' ? (
+          <AddStudent
+            onAddStudent={handleAddStudent}
+            onCancel={() => setActiveTab('allStudents')}
+          />
+        ) : activeTab === 'search' ? (
+          <StudentList
+            students={filteredStudents}
+            onSelectStudent={setSelectedStudent}
+            onDeleteStudent={handleDeleteStudent}
+            onAddNew={() => setActiveTab('addStudent')}
+          />
+        ) : activeTab === 'fees' ? (
+          <FeesTab
+            students={students}
+            onUpdateStudent={handleUpdateStudent}
+          />
+        ) : activeTab === 'marks' ? (
+
+          <MarksTab
+            students={students}
+            onUpdateStudent={handleUpdateStudent}
+          />
+        ) : activeTab === 'assessment' ? (
+
+          <AssessmentTab
+            students={students}
+            onUpdateStudent={handleUpdateStudent}
+          />
+        ) : (
+          <AllStudents
+            students={students}
+            onViewDetails={setSelectedStudent}
+            onDelete={handleDeleteStudent}
+            onUpdateStudent={handleUpdateStudent}
+            onRefresh={refreshStudents}
+            isLoading={isLoading}
+          />
+        )}
+      </div>
 
       {/* Add some CSS for highlighting new students */}
       <style jsx>{`
