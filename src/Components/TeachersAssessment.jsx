@@ -8,6 +8,7 @@ import {
   Eye, Download, Printer, Clock
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import TeacherApi from '../service/TeacherApi';
 
 const TeachersAssessment = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,6 +20,14 @@ const TeachersAssessment = () => {
   const [showViewModal, setShowViewModal] = useState(false);
   const [selectedTeacher, setSelectedTeacher] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [classPerformanceFields, setClassPerformanceFields] = useState({});
+  const [stats, setStats] = useState({
+    totalTeachers: 0,
+    averageAttendance: 0,
+    averagePerformance: 0,
+    subjectCount: 0,
+    classCount: 0
+  });
   const [formData, setFormData] = useState({
     name: '',
     subject: '',
@@ -34,102 +43,18 @@ const TeachersAssessment = () => {
   // Load teachers on component mount
   useEffect(() => {
     loadTeachers();
+    loadStats();
   }, []);
 
   const loadTeachers = async () => {
     setLoading(true);
     try {
-      // Simulate API call - replace with actual API
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // Demo data
-      const demoTeachers = [
-        {
-          id: 'TCH001',
-          name: 'Dr. Sarah Johnson',
-          subject: 'Mathematics',
-          classesAssigned: ['Class 3', 'Class 5'],
-          phone: '+91 98765 43210',
-          email: 'sarah.johnson@school.com',
-          remarks: 'Experienced math teacher, excellent track record',
-          attendance: 94,
-          feedback: 'Very dedicated teacher. Students show great improvement in problem-solving skills.',
-          overallPerformance: {
-            'Class 3': { averagePercentage: 78, totalStudents: 32, examCount: 4 },
-            'Class 5': { averagePercentage: 82, totalStudents: 28, examCount: 4 }
-          },
-          joinDate: '2020-06-15'
-        },
-        {
-          id: 'TCH002',
-          name: 'Prof. Michael Chen',
-          subject: 'Physics',
-          classesAssigned: ['Class 9', 'Class 10', 'Class 11'],
-          phone: '+91 98765 43211',
-          email: 'michael.chen@school.com',
-          remarks: 'PhD in Physics, excellent at explaining concepts',
-          attendance: 97,
-          feedback: 'Outstanding teacher. Students consistently score above 85% in physics.',
-          overallPerformance: {
-            'Class 9': { averagePercentage: 85, totalStudents: 35, examCount: 4 },
-            'Class 10': { averagePercentage: 88, totalStudents: 32, examCount: 4 },
-            'Class 11': { averagePercentage: 76, totalStudents: 28, examCount: 4 }
-          },
-          joinDate: '2019-08-20'
-        },
-        {
-          id: 'TCH003',
-          name: 'Ms. Emily Rodriguez',
-          subject: 'English',
-          classesAssigned: ['Class 3', 'Class 4', 'Class 6'],
-          phone: '+91 98765 43212',
-          email: 'emily.r@school.com',
-          remarks: 'Creative teaching methods, excellent communication',
-          attendance: 91,
-          feedback: 'Very engaging teacher. Students actively participate in class discussions.',
-          overallPerformance: {
-            'Class 3': { averagePercentage: 81, totalStudents: 32, examCount: 4 },
-            'Class 4': { averagePercentage: 79, totalStudents: 30, examCount: 4 },
-            'Class 6': { averagePercentage: 84, totalStudents: 28, examCount: 4 }
-          },
-          joinDate: '2021-01-10'
-        },
-        {
-          id: 'TCH004',
-          name: 'Dr. Rajesh Kumar',
-          subject: 'Chemistry',
-          classesAssigned: ['Class 11', 'Class 12'],
-          phone: '+91 98765 43213',
-          email: 'rajesh.k@school.com',
-          remarks: 'Research background, excellent lab expertise',
-          attendance: 88,
-          feedback: 'Needs to improve practical demonstrations. Theory is well covered.',
-          overallPerformance: {
-            'Class 11': { averagePercentage: 72, totalStudents: 28, examCount: 4 },
-            'Class 12': { averagePercentage: 74, totalStudents: 26, examCount: 4 }
-          },
-          joinDate: '2018-07-05'
-        },
-        {
-          id: 'TCH005',
-          name: 'Ms. Priya Sharma',
-          subject: 'Computer Science',
-          classesAssigned: ['Class 8', 'Class 9', 'Class 10'],
-          phone: '+91 98765 43214',
-          email: 'priya.s@school.com',
-          remarks: 'Coding expert, robotics club coordinator',
-          attendance: 96,
-          feedback: 'Excellent hands-on teaching. Students are excelling in coding competitions.',
-          overallPerformance: {
-            'Class 8': { averagePercentage: 86, totalStudents: 34, examCount: 4 },
-            'Class 9': { averagePercentage: 83, totalStudents: 35, examCount: 4 },
-            'Class 10': { averagePercentage: 85, totalStudents: 32, examCount: 4 }
-          },
-          joinDate: '2020-11-20'
-        }
-      ];
-      
-      setTeachers(demoTeachers);
+      const result = await TeacherApi.getAllTeachers();
+      if (result.success) {
+        setTeachers(result.teachers);
+      } else {
+        toast.error(result.error || 'Failed to load teachers');
+      }
     } catch (error) {
       console.error('Load teachers error:', error);
       toast.error('Failed to load teachers');
@@ -138,39 +63,50 @@ const TeachersAssessment = () => {
     }
   };
 
+  const loadStats = async () => {
+    try {
+      const result = await TeacherApi.getTeacherStats();
+      if (result.success) {
+        setStats(result.stats);
+      }
+    } catch (error) {
+      console.error('Load stats error:', error);
+    }
+  };
+
   // Get unique subjects and classes for filters
   const subjects = [...new Set(teachers.map(t => t.subject))];
-  const allClasses = [...new Set(teachers.flatMap(t => t.classesAssigned))].sort();
+  const allClasses = [...new Set(teachers.flatMap(t => t.classesAssigned || []))].sort();
 
   // Filter teachers
   const filteredTeachers = teachers.filter(teacher => {
     const matchesSearch = !searchTerm || 
-      teacher.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      teacher.phone.includes(searchTerm);
+      teacher.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      teacher.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      teacher.phone?.includes(searchTerm);
 
     const matchesSubject = !selectedSubject || teacher.subject === selectedSubject;
-    const matchesClass = !selectedClass || teacher.classesAssigned.includes(selectedClass);
+    const matchesClass = !selectedClass || (teacher.classesAssigned || []).includes(selectedClass);
 
     return matchesSearch && matchesSubject && matchesClass;
   });
 
   // Calculate overall performance across all classes
   const calculateOverallPercentage = (teacher) => {
-    const performances = Object.values(teacher.overallPerformance);
+    const performances = Object.values(teacher.overallPerformance || {});
     if (performances.length === 0) return 0;
-    const total = performances.reduce((sum, p) => sum + p.averagePercentage, 0);
+    const total = performances.reduce((sum, p) => sum + (p.averagePercentage || 0), 0);
     return Math.round(total / performances.length);
   };
 
-  // Calculate average attendance
+  // Calculate average attendance for filtered teachers
   const getAverageAttendance = () => {
     if (filteredTeachers.length === 0) return 0;
-    const total = filteredTeachers.reduce((sum, t) => sum + t.attendance, 0);
+    const total = filteredTeachers.reduce((sum, t) => sum + (t.attendance || 0), 0);
     return Math.round(total / filteredTeachers.length);
   };
 
-  // Calculate average performance
+  // Calculate average performance for filtered teachers
   const getAveragePerformance = () => {
     if (filteredTeachers.length === 0) return 0;
     const total = filteredTeachers.reduce((sum, t) => sum + calculateOverallPercentage(t), 0);
@@ -183,18 +119,37 @@ const TeachersAssessment = () => {
       return;
     }
 
+    // Build overallPerformance from classPerformanceFields
+    const overallPerformance = {};
+    formData.classesAssigned.forEach(className => {
+      const percentage = classPerformanceFields[className] || 0;
+      if (percentage > 0) {
+        overallPerformance[className] = {
+          averagePercentage: parseInt(percentage),
+          totalStudents: 0,
+          examCount: 0,
+          lastUpdated: new Date().toISOString()
+        };
+      }
+    });
+
+    const teacherData = {
+      ...formData,
+      overallPerformance
+    };
+
     setLoading(true);
     try {
-      const newTeacher = {
-        id: `TCH${String(teachers.length + 1).padStart(3, '0')}`,
-        ...formData,
-        joinDate: new Date().toISOString().split('T')[0]
-      };
-      
-      setTeachers([...teachers, newTeacher]);
-      toast.success('Teacher added successfully');
-      setShowAddModal(false);
-      resetForm();
+      const result = await TeacherApi.createTeacher(teacherData);
+      if (result.success) {
+        toast.success('Teacher added successfully');
+        await loadTeachers();
+        await loadStats();
+        setShowAddModal(false);
+        resetForm();
+      } else {
+        toast.error(result.error || 'Failed to add teacher');
+      }
     } catch (error) {
       toast.error('Failed to add teacher');
     } finally {
@@ -205,12 +160,16 @@ const TeachersAssessment = () => {
   const handleUpdateTeacher = async () => {
     setLoading(true);
     try {
-      setTeachers(teachers.map(t => 
-        t.id === selectedTeacher.id ? { ...selectedTeacher } : t
-      ));
-      toast.success('Teacher updated successfully');
-      setShowEditModal(false);
-      setSelectedTeacher(null);
+      const result = await TeacherApi.updateTeacher(selectedTeacher.id, selectedTeacher);
+      if (result.success) {
+        toast.success('Teacher updated successfully');
+        await loadTeachers();
+        await loadStats();
+        setShowEditModal(false);
+        setSelectedTeacher(null);
+      } else {
+        toast.error(result.message || 'Failed to update teacher');
+      }
     } catch (error) {
       toast.error('Failed to update teacher');
     } finally {
@@ -223,8 +182,14 @@ const TeachersAssessment = () => {
     
     setLoading(true);
     try {
-      setTeachers(teachers.filter(t => t.id !== teacherId));
-      toast.success('Teacher deleted successfully');
+      const result = await TeacherApi.deleteTeacher(teacherId);
+      if (result.success) {
+        toast.success('Teacher deleted successfully');
+        await loadTeachers();
+        await loadStats();
+      } else {
+        toast.error(result.message || 'Failed to delete teacher');
+      }
     } catch (error) {
       toast.error('Failed to delete teacher');
     } finally {
@@ -244,15 +209,33 @@ const TeachersAssessment = () => {
       feedback: '',
       overallPerformance: {}
     });
+    setClassPerformanceFields({});
   };
 
   const handleClassToggle = (className) => {
     const current = formData.classesAssigned;
+    let newClasses;
+    let newPerformanceFields = { ...classPerformanceFields };
+    
     if (current.includes(className)) {
-      setFormData({ ...formData, classesAssigned: current.filter(c => c !== className) });
+      // Remove class
+      newClasses = current.filter(c => c !== className);
+      delete newPerformanceFields[className];
     } else {
-      setFormData({ ...formData, classesAssigned: [...current, className] });
+      // Add class
+      newClasses = [...current, className];
+      newPerformanceFields[className] = 0;
     }
+    
+    setFormData({ ...formData, classesAssigned: newClasses });
+    setClassPerformanceFields(newPerformanceFields);
+  };
+
+  const handleClassPerformanceFieldChange = (className, percentage) => {
+    setClassPerformanceFields({
+      ...classPerformanceFields,
+      [className]: parseInt(percentage) || 0
+    });
   };
 
   const handleClassPerformanceChange = (className, percentage) => {
@@ -261,11 +244,35 @@ const TeachersAssessment = () => {
       overallPerformance: {
         ...selectedTeacher.overallPerformance,
         [className]: {
-          ...selectedTeacher.overallPerformance[className],
-          averagePercentage: parseInt(percentage) || 0
+          ...selectedTeacher.overallPerformance?.[className],
+          averagePercentage: parseInt(percentage) || 0,
+          totalStudents: selectedTeacher.overallPerformance?.[className]?.totalStudents || 0,
+          examCount: selectedTeacher.overallPerformance?.[className]?.examCount || 0
         }
       }
     });
+  };
+
+  const handleUpdateClassPerformance = async (className, percentage) => {
+    setLoading(true);
+    try {
+      const result = await TeacherApi.updateClassPerformance(selectedTeacher.id, className, {
+        averagePercentage: parseInt(percentage) || 0,
+        totalStudents: selectedTeacher.overallPerformance?.[className]?.totalStudents || 0,
+        examCount: selectedTeacher.overallPerformance?.[className]?.examCount || 0
+      });
+      
+      if (result.success) {
+        toast.success(`${className} performance updated`);
+        await loadTeachers();
+      } else {
+        toast.error(result.message || 'Failed to update performance');
+      }
+    } catch (error) {
+      toast.error('Failed to update performance');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const getPerformanceColor = (percentage) => {
@@ -278,6 +285,24 @@ const TeachersAssessment = () => {
     if (attendance >= 90) return 'text-green-600';
     if (attendance >= 75) return 'text-yellow-600';
     return 'text-red-600';
+  };
+
+  // Export teachers data
+  const handleExportTeachers = async () => {
+    try {
+      const blob = await TeacherApi.exportTeachers();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'teachers_export.csv';
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      toast.success('Teachers exported successfully');
+    } catch (error) {
+      toast.error('Failed to export teachers');
+    }
   };
 
   return (
@@ -294,13 +319,22 @@ const TeachersAssessment = () => {
               Manage teacher profiles, track attendance, feedback, and class performance percentages.
             </p>
           </div>
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl"
-          >
-            <Plus size={18} />
-            <span>Add New Teacher</span>
-          </button>
+          <div className="flex space-x-3">
+            {/* <button
+              onClick={handleExportTeachers}
+              className="px-5 py-2.5 bg-white border border-indigo-300 text-indigo-600 rounded-xl hover:bg-indigo-50 flex items-center space-x-2 transition-all"
+            >
+              <Download size={18} />
+              <span>Export</span>
+            </button> */}
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl hover:bg-indigo-700 flex items-center space-x-2 transition-all shadow-lg hover:shadow-xl"
+            >
+              <Plus size={18} />
+              <span>Add New Teacher</span>
+            </button>
+          </div>
         </div>
       </div>
 
@@ -411,104 +445,114 @@ const TeachersAssessment = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredTeachers.map(teacher => {
-                const overallPerf = calculateOverallPercentage(teacher);
-                return (
-                  <tr key={teacher.id} className="hover:bg-gray-50 transition-colors">
-                    <td className="px-6 py-4">
-                      <div>
-                        <p className="font-semibold text-gray-800">{teacher.name}</p>
-                        <p className="text-xs text-gray-500">{teacher.email}</p>
-                        <p className="text-xs text-gray-400">{teacher.phone}</p>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
-                        {teacher.subject}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-wrap gap-1">
-                        {teacher.classesAssigned.map(cls => (
-                          <span key={cls} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
-                            {cls}
+              {loading ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-12">
+                    <div className="flex justify-center">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+                    </div>
+                   </td>
+                 </tr>
+              ) : filteredTeachers.length === 0 ? (
+                <tr>
+                  <td colSpan="7" className="text-center py-12">
+                    <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <User className="text-gray-400" size={32} />
+                    </div>
+                    <h4 className="text-lg font-semibold text-gray-800 mb-2">No teachers found</h4>
+                    <p className="text-gray-600">Click "Add New Teacher" to get started</p>
+                   </td>
+                 </tr>
+              ) : (
+                filteredTeachers.map(teacher => {
+                  const overallPerf = calculateOverallPercentage(teacher);
+                  return (
+                    <tr key={teacher.id || teacher.teacherId} className="hover:bg-gray-50 transition-colors">
+                      <td className="px-6 py-4">
+                        <div>
+                          <p className="font-semibold text-gray-800">{teacher.name}</p>
+                          <p className="text-xs text-gray-500">{teacher.email}</p>
+                          <p className="text-xs text-gray-400">{teacher.phone}</p>
+                        </div>
+                       </td>
+                      <td className="px-6 py-4">
+                        <span className="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-medium rounded-full">
+                          {teacher.subject}
+                        </span>
+                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex flex-wrap gap-1">
+                          {(teacher.classesAssigned || []).map(cls => (
+                            <span key={cls} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">
+                              {cls}
+                            </span>
+                          ))}
+                        </div>
+                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <span className={`font-semibold ${getAttendanceColor(teacher.attendance)}`}>
+                          {teacher.attendance}%
+                        </span>
+                       </td>
+                      <td className="px-6 py-4 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPerformanceColor(overallPerf)}`}>
+                            {overallPerf}%
                           </span>
-                        ))}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <span className={`font-semibold ${getAttendanceColor(teacher.attendance)}`}>
-                        {teacher.attendance}%
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-center">
-                      <div className="flex flex-col items-center">
-                        <span className={`px-3 py-1 rounded-full text-sm font-bold ${getPerformanceColor(overallPerf)}`}>
-                          {overallPerf}%
-                        </span>
-                        <span className="text-xs text-gray-400 mt-1">
-                          {Object.keys(teacher.overallPerformance).length} classes
-                        </span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <p className="text-sm text-gray-600 line-clamp-2 max-w-xs">
-                        {teacher.feedback || '—'}
-                      </p>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center justify-center space-x-2">
-                        <button
-                          onClick={() => {
-                            setSelectedTeacher(teacher);
-                            setShowViewModal(true);
-                          }}
-                          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
-                          title="View Details"
-                        >
-                          <Eye size={18} />
-                        </button>
-                        <button
-                          onClick={() => {
-                            setSelectedTeacher(teacher);
-                            setShowEditModal(true);
-                          }}
-                          className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
-                          title="Edit"
-                        >
-                          <Edit2 size={18} />
-                        </button>
-                        <button
-                          onClick={() => handleDeleteTeacher(teacher.id)}
-                          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                          title="Delete"
-                        >
-                          <Trash2 size={18} />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                          <span className="text-xs text-gray-400 mt-1">
+                            {Object.keys(teacher.overallPerformance || {}).length} classes
+                          </span>
+                        </div>
+                       </td>
+                      <td className="px-6 py-4">
+                        <p className="text-sm text-gray-600 line-clamp-2 max-w-xs">
+                          {teacher.feedback || '—'}
+                        </p>
+                       </td>
+                      <td className="px-6 py-4">
+                        <div className="flex items-center justify-center space-x-2">
+                          <button
+                            onClick={() => {
+                              setSelectedTeacher(teacher);
+                              setShowViewModal(true);
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                            title="View Details"
+                          >
+                            <Eye size={18} />
+                          </button>
+                          <button
+                            onClick={() => {
+                              setSelectedTeacher(teacher);
+                              setShowEditModal(true);
+                            }}
+                            className="p-1.5 text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                            title="Edit"
+                          >
+                            <Edit2 size={18} />
+                          </button>
+                          <button
+                            onClick={() => handleDeleteTeacher(teacher.id || teacher.teacherId)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                            title="Delete"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </div>
+                       </td>
+                    </tr>
+                  );
+                })
+              )}
             </tbody>
           </table>
         </div>
-        
-        {filteredTeachers.length === 0 && (
-          <div className="text-center py-12">
-            <div className="mx-auto w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-              <User className="text-gray-400" size={32} />
-            </div>
-            <h4 className="text-lg font-semibold text-gray-800 mb-2">No teachers found</h4>
-            <p className="text-gray-600">Click "Add New Teacher" to get started</p>
-          </div>
-        )}
       </div>
 
       {/* Add Teacher Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
             <div className="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
               <h2 className="text-xl font-bold text-gray-800">Add New Teacher</h2>
               <button onClick={() => setShowAddModal(false)} className="text-gray-400 hover:text-gray-600">
@@ -587,6 +631,47 @@ const TeachersAssessment = () => {
                       ))}
                     </div>
                   </div>
+
+                  {/* Class Performance Fields - Shows only when classes are selected */}
+                  {formData.classesAssigned.length > 0 && (
+                    <div className="border-t pt-4 mt-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Class-wise Performance (%) 
+                        <span className="text-xs text-gray-500 ml-2">(Enter average percentage for each class)</span>
+                      </label>
+                      <div className="space-y-3">
+                        {formData.classesAssigned.map(className => (
+                          <div key={className} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="w-28">
+                              <span className="font-medium text-gray-700">{className}</span>
+                            </div>
+                            <div className="flex-1 flex items-center space-x-3">
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                value={classPerformanceFields[className] || 0}
+                                onChange={(e) => handleClassPerformanceFieldChange(className, e.target.value)}
+                                className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
+                                placeholder="Percentage"
+                              />
+                              <span className="text-gray-500">%</span>
+                              <div className="flex-1 h-2 bg-gray-200 rounded-full">
+                                <div 
+                                  className={`h-2 rounded-full transition-all ${
+                                    (classPerformanceFields[className] || 0) >= 80 ? 'bg-green-500' :
+                                    (classPerformanceFields[className] || 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                                  }`}
+                                  style={{ width: `${classPerformanceFields[className] || 0}%` }}
+                                />
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">Attendance (%)</label>
                     <input
@@ -719,20 +804,35 @@ const TeachersAssessment = () => {
               <div>
                 <h3 className="text-md font-semibold text-gray-800 mb-3">Class-wise Performance (%)</h3>
                 <div className="space-y-3">
-                  {selectedTeacher.classesAssigned.map(className => (
-                    <div key={className} className="flex items-center space-x-4">
+                  {(selectedTeacher.classesAssigned || []).map(className => (
+                    <div key={className} className="flex items-center space-x-4 p-3 bg-gray-50 rounded-lg">
                       <span className="w-24 font-medium text-gray-700">{className}</span>
-                      <div className="flex-1">
+                      <div className="flex-1 flex items-center space-x-3">
                         <input
                           type="number"
                           min="0"
                           max="100"
-                          value={selectedTeacher.overallPerformance[className]?.averagePercentage || 0}
+                          value={selectedTeacher.overallPerformance?.[className]?.averagePercentage || 0}
                           onChange={(e) => handleClassPerformanceChange(className, e.target.value)}
                           className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500"
                           placeholder="Percentage"
                         />
-                        <span className="ml-2 text-gray-500">%</span>
+                        <span className="text-gray-500">%</span>
+                        <div className="flex-1 h-2 bg-gray-200 rounded-full">
+                          <div 
+                            className={`h-2 rounded-full transition-all ${
+                              (selectedTeacher.overallPerformance?.[className]?.averagePercentage || 0) >= 80 ? 'bg-green-500' :
+                              (selectedTeacher.overallPerformance?.[className]?.averagePercentage || 0) >= 60 ? 'bg-yellow-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${selectedTeacher.overallPerformance?.[className]?.averagePercentage || 0}%` }}
+                          />
+                        </div>
+                        <button
+                          onClick={() => handleUpdateClassPerformance(className, selectedTeacher.overallPerformance?.[className]?.averagePercentage || 0)}
+                          className="px-3 py-2 text-indigo-600 hover:bg-indigo-50 rounded-lg"
+                        >
+                          Save
+                        </button>
                       </div>
                     </div>
                   ))}
@@ -807,7 +907,7 @@ const TeachersAssessment = () => {
                   </div>
                   <div className="text-right">
                     <p className="text-sm text-gray-500">Teacher ID</p>
-                    <p className="font-mono text-sm">{selectedTeacher.id}</p>
+                    <p className="font-mono text-sm">{selectedTeacher.id || selectedTeacher.teacherId}</p>
                   </div>
                 </div>
               </div>
@@ -816,19 +916,19 @@ const TeachersAssessment = () => {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex items-center space-x-2">
                   <Phone size={16} className="text-gray-400" />
-                  <span className="text-gray-700">{selectedTeacher.phone}</span>
+                  <span className="text-gray-700">{selectedTeacher.phone || '—'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Mail size={16} className="text-gray-400" />
-                  <span className="text-gray-700">{selectedTeacher.email}</span>
+                  <span className="text-gray-700">{selectedTeacher.email || '—'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Calendar size={16} className="text-gray-400" />
-                  <span className="text-gray-700">Joined: {selectedTeacher.joinDate}</span>
+                  <span className="text-gray-700">Joined: {selectedTeacher.joinDate || '—'}</span>
                 </div>
                 <div className="flex items-center space-x-2">
                   <Users size={16} className="text-gray-400" />
-                  <span className="text-gray-700">Classes: {selectedTeacher.classesAssigned.join(', ')}</span>
+                  <span className="text-gray-700">Classes: {(selectedTeacher.classesAssigned || []).join(', ') || '—'}</span>
                 </div>
               </div>
 
@@ -839,16 +939,16 @@ const TeachersAssessment = () => {
                   <span>Performance Overview</span>
                 </h4>
                 <div className="space-y-3">
-                  {Object.entries(selectedTeacher.overallPerformance).map(([className, data]) => (
+                  {Object.entries(selectedTeacher.overallPerformance || {}).map(([className, data]) => (
                     <div key={className}>
                       <div className="flex justify-between text-sm mb-1">
-                        <span>{className} (Students: {data.totalStudents})</span>
-                        <span className="font-semibold">{data.averagePercentage}%</span>
+                        <span>{className}</span>
+                        <span className="font-semibold">{data.averagePercentage || 0}%</span>
                       </div>
                       <div className="w-full bg-gray-200 rounded-full h-2">
                         <div 
                           className="bg-indigo-600 rounded-full h-2 transition-all"
-                          style={{ width: `${data.averagePercentage}%` }}
+                          style={{ width: `${data.averagePercentage || 0}%` }}
                         />
                       </div>
                     </div>
@@ -874,13 +974,13 @@ const TeachersAssessment = () => {
                   <div className="flex-1 bg-gray-200 rounded-full h-3">
                     <div 
                       className={`rounded-full h-3 transition-all ${
-                        selectedTeacher.attendance >= 90 ? 'bg-green-500' :
-                        selectedTeacher.attendance >= 75 ? 'bg-yellow-500' : 'bg-red-500'
+                        (selectedTeacher.attendance || 0) >= 90 ? 'bg-green-500' :
+                        (selectedTeacher.attendance || 0) >= 75 ? 'bg-yellow-500' : 'bg-red-500'
                       }`}
-                      style={{ width: `${selectedTeacher.attendance}%` }}
+                      style={{ width: `${selectedTeacher.attendance || 0}%` }}
                     />
                   </div>
-                  <span className="font-bold text-lg">{selectedTeacher.attendance}%</span>
+                  <span className="font-bold text-lg">{selectedTeacher.attendance || 0}%</span>
                 </div>
               </div>
 
