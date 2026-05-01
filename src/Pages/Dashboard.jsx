@@ -1,6 +1,6 @@
 // src/components/dashboard/Dashboard.jsx
 import React, { useState, useEffect, useCallback } from 'react';
-import { LogOut, Users, UserPlus, List, BarChart3, Search, DollarSign, Award } from 'lucide-react';
+import { LogOut, Users, UserPlus, List, BarChart3, Search, DollarSign, Award, Ticket } from 'lucide-react';
 import StudentList from '../Components/StudentList';
 import AllStudents from '../Components/AllStudents';
 import AddStudent from '../Components/AddStudents';
@@ -12,6 +12,7 @@ import FeesTab from '../Components/FeesTab';
 import MarksTab from '../Components/MarksTab';
 import AssessmentTab from '../Components/AssessmentTab';
 import TeachersAssessment from '../Components/TeachersAssessment';
+import HallTicket from '../Components/HallTicket';
 
 const Dashboard = ({ user, onLogout }) => {
   const [activeTab, setActiveTab] = useState('search');
@@ -158,15 +159,17 @@ const Dashboard = ({ user, onLogout }) => {
         </div>
       </header>
 
-      {/* Navigation Tabs */}
+      {/* Navigation Tabs - FIXED */}
       <div className="border-b border-gray-200 bg-white shadow-sm">
         <div className="px-6">
           <nav className="flex space-x-8">
             <button
               onClick={() => setActiveTab('search')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'search'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'search'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <Search size={18} />
@@ -176,15 +179,18 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+            
             <button
               onClick={() => setActiveTab('allStudents')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'allStudents'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'allStudents'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <List size={18} />
-                <span>All Students </span>
+                <span>All Students</span>
               </div>
               {activeTab === 'allStudents' && (
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
@@ -193,9 +199,11 @@ const Dashboard = ({ user, onLogout }) => {
 
             <button
               onClick={() => setActiveTab('addStudent')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'addStudent'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'addStudent'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <UserPlus size={18} />
@@ -208,9 +216,11 @@ const Dashboard = ({ user, onLogout }) => {
 
             <button
               onClick={() => setActiveTab('fees')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'fees'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'fees'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <DollarSign size={18} />
@@ -220,11 +230,14 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+            
             <button
               onClick={() => setActiveTab('marks')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'marks'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'marks'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <Award size={18} />
@@ -234,11 +247,14 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+            
             <button
               onClick={() => setActiveTab('assessment')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'assessment'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'assessment'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <BarChart3 size={18} />
@@ -248,11 +264,15 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
-             <button
+            
+            {/* FIXED: Teachers Assessment button */}
+            <button
               onClick={() => setActiveTab('teachers')}
-              className={`px-4 py-4 font-medium text-sm transition-all relative ${activeTab === 'assessment'
-                ? 'text-amber-600'
-                : 'text-gray-500 hover:text-gray-700'}`}
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'teachers'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
             >
               <div className="flex items-center space-x-2">
                 <BarChart3 size={18} />
@@ -262,11 +282,29 @@ const Dashboard = ({ user, onLogout }) => {
                 <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
               )}
             </button>
+            
+            {/* FIXED: Hall Ticket button */}
+            <button
+              onClick={() => setActiveTab('hallticket')} // Fixed typo: 'halltickect' -> 'hallticket'
+              className={`px-4 py-4 font-medium text-sm transition-all relative ${
+                activeTab === 'hallticket'
+                  ? 'text-amber-600'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              <div className="flex items-center space-x-2">
+                <Ticket size={18} />
+                <span>Hall Ticket</span>
+              </div>
+              {activeTab === 'hallticket' && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600"></div>
+              )}
+            </button>
           </nav>
         </div>
       </div>
 
-      {/* Main Content */}
+      {/* Main Content - FIXED conditional rendering */}
       <div className="p-6">
         {activeTab === 'addStudent' ? (
           <AddStudent
@@ -286,25 +324,23 @@ const Dashboard = ({ user, onLogout }) => {
             onUpdateStudent={handleUpdateStudent}
           />
         ) : activeTab === 'marks' ? (
-
           <MarksTab
             students={students}
             onUpdateStudent={handleUpdateStudent}
           />
         ) : activeTab === 'assessment' ? (
-
           <AssessmentTab
             students={students}
             onUpdateStudent={handleUpdateStudent}
           />
-        ) : activeTab === 'teachers' ? (
-
+        ) : activeTab === 'teachers' ? ( // Fixed condition
           <TeachersAssessment
             students={students}
             onUpdateStudent={handleUpdateStudent}
           />
-        ):
-         (
+        ) : activeTab === 'hallticket' ? ( // Added hallticket condition
+          <HallTicket/>
+        ) : (
           <AllStudents
             students={students}
             onViewDetails={setSelectedStudent}
