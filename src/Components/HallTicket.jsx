@@ -1,6 +1,6 @@
 // src/Components/HallTicket.jsx
 import React, { useState, useEffect } from 'react';
-import { Eye, Edit, Download, Search, X, Save, Printer, Calendar, BookOpen, FileText, User, Loader, Plus, Trash2 } from 'lucide-react';
+import { Eye, Edit, Download, Search, X, Save, Printer, Calendar, BookOpen, FileText, User, Loader, Plus, Trash2, ChevronDown, ChevronRight, Users } from 'lucide-react';
 import { toast } from 'react-toastify';
 import StudentApi from '../service/StudentApi';
 
@@ -16,6 +16,9 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
   const [photoPreview, setPhotoPreview] = useState(null);
   const [photoFile, setPhotoFile] = useState(null);
   const [savedHallTicket, setSavedHallTicket] = useState(null);
+  const [expandedSections, setExpandedSections] = useState({});
+  const [selectedClass, setSelectedClass] = useState(null);
+  const [selectedSection, setSelectedSection] = useState(null);
 
   // Everything starts empty - no predefined values
   const emptyHallTicketData = {
@@ -34,8 +37,8 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     examType: '',
     examDate: '',
     examTime: '',
-    subjects: [], // Empty array - user must add subjects
-    instructions: [], // Empty array - user must add instructions
+    subjects: [],
+    instructions: [],
     studentSignature: '',
     principalSignature: '',
     principalName: '',
@@ -69,7 +72,58 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     }
   };
 
-  // Search filter
+  // Get unique classes from students
+  const getUniqueClasses = () => {
+    const classes = new Map();
+    students.forEach(student => {
+      const basicInfo = student.basicInfo || {};
+      const grade = basicInfo.grade || 'Unassigned';
+      const section = basicInfo.section || 'Unassigned';
+      
+      if (!classes.has(grade)) {
+        classes.set(grade, new Set());
+      }
+      classes.get(grade).add(section);
+    });
+    
+    const result = [];
+    classes.forEach((sections, className) => {
+      result.push({
+        className,
+        sections: Array.from(sections).sort()
+      });
+    });
+    
+    return result.sort((a, b) => a.className.localeCompare(b.className));
+  };
+
+  // Get students by class and section
+  const getStudentsByClassAndSection = (className, section) => {
+    return students.filter(student => {
+      const basicInfo = student.basicInfo || {};
+      return basicInfo.grade === className && basicInfo.section === section;
+    });
+  };
+
+  // Toggle section expansion
+  const toggleSection = (className, section) => {
+    const key = `${className}-${section}`;
+    setExpandedSections(prev => ({
+      ...prev,
+      [key]: !prev[key]
+    }));
+    
+    // Set selected class and section when expanding
+    if (!expandedSections[key]) {
+      setSelectedClass(className);
+      setSelectedSection(section);
+    } else {
+      setSelectedClass(null);
+      setSelectedSection(null);
+    }
+  };
+
+  // Search filter that respects class/section structure
   useEffect(() => {
     if (searchTerm.trim() === '') {
       setFilteredStudents(students);
@@ -79,7 +133,8 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
         return (
           basicInfo.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
           basicInfo.admissionNo?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          basicInfo.grade?.toLowerCase().includes(searchTerm.toLowerCase())
+          basicInfo.grade?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          basicInfo.section?.toLowerCase().includes(searchTerm.toLowerCase())
         );
       });
       setFilteredStudents(filtered);
@@ -106,7 +161,6 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     const className = getStudentInfo(student, 'className');
     const section = getStudentInfo(student, 'section');
 
-    // Only populate student info, everything else remains empty
     setHallTicketData({
       schoolName: '',
       schoolAffiliation: '',
@@ -135,7 +189,6 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     setPhotoFile(null);
     setSavedHallTicket(null);
 
-    // Try to load existing hall ticket from backend
     try {
       const result = await StudentApi.getHallTicket(student.studentId);
       if (result.success && result.hallTicket) {
@@ -285,7 +338,6 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
       return div.innerHTML;
     };
 
-    // Check if there's any content to display
     const hasSchoolInfo = data.schoolName || data.schoolAffiliation || data.examTitle;
     const hasSubjects = data.subjects && data.subjects.length > 0 && data.subjects.some(s => s.name);
     const hasInstructions = data.instructions && data.instructions.length > 0 && data.instructions.some(i => i.trim());
@@ -436,7 +488,6 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     }
   };
 
-
   const editHallTicket = async (student) => {
     setSelectedStudent(student);
     setIsLoading(true);
@@ -485,27 +536,13 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
     }
   };
 
-  return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h2 className="text-2xl font-bold text-gray-800">Hall Ticket Management</h2>
-        <p className="text-gray-600 mt-1">Create and manage hall tickets for students - All fields are customizable</p>
-      </div>
-
-      <div className="mb-6">
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-          <input
-            type="text"
-            placeholder="Search by name, admission number, or class..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
-          />
-        </div>
-      </div>
-
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+  // Render grouped class and section view
+  const renderGroupedView = () => {
+    const classes = getUniqueClasses();
+    
+    if (searchTerm) {
+      // When searching, show flat list
+      return (
         <div className="overflow-x-auto">
           <table className="min-w-full divide-y divide-gray-200">
             <thead className="bg-gray-50">
@@ -519,45 +556,176 @@ const HallTicket = ({ students: propStudents, onUpdateStudent }) => {
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {isLoading ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
-                    <Loader className="animate-spin inline-block mr-2" size={20} />
-                    Loading students...
-                  </td>
-                </tr>
-              ) : filteredStudents.length === 0 ? (
-                <tr>
-                  <td colSpan="6" className="px-6 py-4 text-center text-gray-500">No students found</td>
-                </tr>
-              ) : (
-                filteredStudents.map((student, index) => {
-                  const basicInfo = student.basicInfo || {};
-                  return (
-                    <tr key={student.studentId} className="hover:bg-gray-50">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{basicInfo.admissionNo || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{basicInfo.name || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{basicInfo.grade || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{basicInfo.section || 'N/A'}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
-                        <div className="flex items-center space-x-4">
-                          <button onClick={() => viewHallTicket(student)} className="text-blue-600 hover:text-blue-900 inline-flex items-center space-x-2">
-                            <Eye size={16} />
-                          </button>
-                          <button onClick={() => editHallTicket(student)} className="text-green-600 hover:text-green-900 inline-flex items-center space-x-2">
-                            <Edit size={16} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
+              {filteredStudents.map((student, index) => {
+                const basicInfo = student.basicInfo || {};
+                return (
+                  <tr key={student.studentId} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{index + 1}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{basicInfo.admissionNo || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{basicInfo.name || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{basicInfo.grade || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{basicInfo.section || 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                      <div className="flex items-center space-x-4">
+                        <button onClick={() => viewHallTicket(student)} className="text-blue-600 hover:text-blue-900 inline-flex items-center space-x-2">
+                          <Eye size={16} />
+                        </button>
+                        <button onClick={() => editHallTicket(student)} className="text-green-600 hover:text-green-900 inline-flex items-center space-x-2">
+                          <Edit size={16} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
+      );
+    }
+    
+    // Grouped view
+    return (
+      <div className="space-y-6">
+        {classes.map((classItem) => (
+          <div key={classItem.className} className="bg-white rounded-lg shadow-md overflow-hidden">
+            <div className="bg-gradient-to-r from-amber-600 to-amber-700 px-6 py-4">
+              <h3 className="text-xl font-bold text-white flex items-center gap-2">
+                <Users size={24} />
+                Class {classItem.className}
+              </h3>
+              <p className="text-amber-100 text-sm mt-1">Total Sections: {classItem.sections.length}</p>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              {classItem.sections.map((section) => {
+                const sectionKey = `${classItem.className}-${section}`;
+                const isExpanded = expandedSections[sectionKey];
+                const sectionStudents = getStudentsByClassAndSection(classItem.className, section);
+                
+                return (
+                  <div key={sectionKey} className="border rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => toggleSection(classItem.className, section)}
+                      className="w-full flex items-center justify-between px-4 py-3 bg-gray-50 hover:bg-gray-100 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        {isExpanded ? <ChevronDown size={20} /> : <ChevronRight size={20} />}
+                        <span className="font-semibold text-gray-800">
+                          Section {section}
+                        </span>
+                        <span className="text-sm text-gray-500 bg-white px-2 py-1 rounded-full">
+                          {sectionStudents.length} Students
+                        </span>
+                      </div>
+                    </button>
+                    
+                    {isExpanded && (
+                      <div className="overflow-x-auto">
+                        <table className="min-w-full divide-y divide-gray-200">
+                          <thead className="bg-gray-50">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">S.No</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Admission No</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Student Name</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Roll Number</th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="bg-white divide-y divide-gray-200">
+                            {sectionStudents.map((student, idx) => {
+                              const basicInfo = student.basicInfo || {};
+                              return (
+                                <tr key={student.studentId} className="hover:bg-gray-50">
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{idx + 1}</td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                    {basicInfo.admissionNo || 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    {basicInfo.name || 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                    {basicInfo.rollNumber || 'N/A'}
+                                  </td>
+                                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
+                                    <div className="flex items-center space-x-3">
+                                      <button
+                                        onClick={() => viewHallTicket(student)}
+                                        className="text-blue-600 hover:text-blue-900 transition-colors"
+                                        title="View Hall Ticket"
+                                      >
+                                        <Eye size={18} />
+                                      </button>
+                                      <button
+                                        onClick={() => editHallTicket(student)}
+                                        className="text-green-600 hover:text-green-900 transition-colors"
+                                        title="Edit Hall Ticket"
+                                      >
+                                        <Edit size={18} />
+                                      </button>
+                                    </div>
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+        
+        {classes.length === 0 && !isLoading && (
+          <div className="text-center py-12 bg-white rounded-lg">
+            <p className="text-gray-500">No students found</p>
+          </div>
+        )}
       </div>
+    );
+  };
+
+  return (
+    <div className="p-6">
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">Hall Ticket Management</h2>
+        <p className="text-gray-600 mt-1">Create and manage hall tickets for students - Organized by Class and Section</p>
+      </div>
+
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
+          <input
+            type="text"
+            placeholder="Search by name, admission number, class, or section..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500"
+          />
+        </div>
+        {searchTerm && (
+          <div className="mt-2 text-sm text-gray-500">
+            Showing search results for "{searchTerm}" 
+            <button 
+              onClick={() => setSearchTerm('')}
+              className="ml-2 text-amber-600 hover:text-amber-700"
+            >
+              Clear search
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader className="animate-spin" size={40} />
+        </div>
+      ) : (
+        renderGroupedView()
+      )}
 
       {/* View Modal */}
       {isViewModalOpen && selectedStudent && (
